@@ -22,31 +22,75 @@ export function executeSimulationWithFallback(
   onError?: (err: Error) => void
 ): WorkerSimulationController {
   let isCancelled = false;
+  let isSettled = false;
+  let worker: Worker | null = null;
+
+  const finishWithResult = (result: SimulationResultV2) => {
+    if (isCancelled || isSettled) return;
+    isSettled = true;
+    onDone?.(result);
+  };
+
+  const finishWithError = (err: unknown) => {
+    if (isCancelled || isSettled) return;
+    isSettled = true;
+    onError?.(err instanceof Error ? err : new Error(String(err)));
+  };
+
+  const executeFallback = () => {
+    if (isCancelled || isSettled) return;
+
+    // Yield once so React can paint the fallback/progress state before the
+    // synchronous simulation starts on browsers that cannot run the worker.
+    setTimeout(() => {
+      if (isCancelled || isSettled) return;
+      try {
+        const result = runFullSimulationV2(snapshot, players, config, (prog, cur, total) => {
+          if (!isCancelled && !isSettled) {
+            onProgress?.(prog, cur, total);
+          }
+        });
+        finishWithResult(result);
+      } catch (err: unknown) {
+        finishWithError(err);
+      }
+    }, 0);
+  };
 
   // Check if browser Web Worker is supported and available
   if (typeof window !== 'undefined' && typeof Worker !== 'undefined') {
     try {
-      const worker = new Worker('/workers/simulationWorker.js');
+      worker = new Worker(new URL('./simulationWorker.ts', import.meta.url), {
+        type: 'module',
+        name: 'fm24-monte-carlo',
+      });
 
       worker.onmessage = (e: MessageEvent) => {
-        if (isCancelled) return;
+        if (isCancelled || isSettled) return;
         const data = e.data;
         if (data.type === 'PROGRESS' && onProgress) {
           onProgress(data.progress, data.scenarioIndex, data.totalScenarios);
         } else if (data.type === 'DONE') {
-          if (onDone) onDone(data.result);
-          worker.terminate();
+          finishWithResult(data.result);
+          worker?.terminate();
         } else if (data.type === 'ERROR') {
-          if (onError) onError(new Error(data.message || 'Worker simulation error'));
-          worker.terminate();
+          worker?.terminate();
+          worker = null;
+          executeFallback();
         }
       };
 
       worker.onerror = (e: ErrorEvent) => {
-        if (!isCancelled && onError) {
-          onError(new Error(e.message || 'Worker error'));
-        }
-        worker.terminate();
+        e.preventDefault();
+        worker?.terminate();
+        worker = null;
+        executeFallback();
+      };
+
+      worker.onmessageerror = () => {
+        worker?.terminate();
+        worker = null;
+        executeFallback();
       };
 
       worker.postMessage({
@@ -59,33 +103,19 @@ export function executeSimulationWithFallback(
       return {
         cancel: () => {
           isCancelled = true;
-          worker.postMessage({ type: 'CANCEL' });
-          worker.terminate();
+          worker?.postMessage({ type: 'CANCEL' });
+          worker?.terminate();
+          worker = null;
         },
       };
     } catch {
-      // Fallback to synchronous/chunked execution if worker fails to initialize
+      worker?.terminate();
+      worker = null;
     }
   }
 
   // Headless / SSR / Test fallback
-  setTimeout(() => {
-    if (isCancelled) return;
-    try {
-      const result = runFullSimulationV2(snapshot, players, config, (prog, cur, total) => {
-        if (!isCancelled && onProgress) {
-          onProgress(prog, cur, total);
-        }
-      });
-      if (!isCancelled && onDone) {
-        onDone(result);
-      }
-    } catch (err: unknown) {
-      if (!isCancelled && onError) {
-        onError(err instanceof Error ? err : new Error(String(err)));
-      }
-    }
-  }, 0);
+  executeFallback();
 
   return {
     cancel: () => {
