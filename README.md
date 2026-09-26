@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Football Manager 2024 (FM24) Team Analyzer & Tactical Engine v2
 
-## Getting Started
+Sebuah alat analisis taktik dan simulasi pertandingan sepak bola komprehensif untuk **Football Manager 2024 (FM24)** yang beroperasi **100% di sisi klien (pure client-side)**.
 
-First, run the development server:
+---
 
+## 🌟 Fitur Utama (Tactical Engine v2)
+
+### 1. Alur Kerja 4 Tahap (Build → Diagnose → Improve → Compare)
+- **1. Build**: Mengatur formasi, susunan 11 pemain starter, role, duty, instruksi tim (TI), dan instruksi individu pemain (PI).
+- **2. Diagnose**: Menampilkan struktur taktis 4 fase, evaluasi Tactical Cohesion vs Data Confidence secara berdampingan, visualisasi 16 metrik taktis, serta 6 kategori temuan taktis berbobot aturan FM24 & Guide to Football.
+- **3. Improve**: Rekomendasi kecocokan skuad (*Squad Fit Recommender*) berbasis Beam Search dengan preview perbedaan (*diff*) dan tombol **Terapkan Atomik** serta **Undo Taktik**.
+- **4. Compare**: Simulasi Monte Carlo stress-testing di Sandbox menguji taktik Anda melawan 24 skenario pertandingan (8 arketipe taktik $\times$ 3 tingkat kapasitas lawan).
+
+---
+
+### 2. Pilar-Pilar Engine v2
+
+- **Dynamic 4-Phase Tactical Shapes**:
+  - `Base Shape`: Formasi dasar kick-off.
+  - `In-Possession Shape`: Pergeseran dinamis pemain saat menguasai bola (misal: IFB merapat jadi 3 bek, IWB masuk sebagai gelandang tengah, Winger menusuk ke kotak penalti).
+  - `Settled Defence Shape`: Bentuk blok pertahanan saat lawan menguasai bola (High Press, Mid-Block, atau Low Block).
+  - `Rest Defence Shape`: Kerapatan pemain di belakang garis bola saat menyerang (struktur $3+2$, $2+3$, dll.).
+
+- **16 Metrik Taktis Terkontekstualisasi (Skala 0–100)**:
+  - Dimodulasi langsung oleh atribut relevan pemain di posisi starter (bukan nilai konstan atau tebakan seragam).
+
+- **Hungarian Algorithm (Kuhn-Munkres) Optimizer**:
+  - Menyelesaikan penugasan 11 starter secara optimal global $O(M \cdot N^2)$, menghindari perangkap *greedy* dan menghormati slot yang dikunci secara manual.
+
+- **Sandbox Monte Carlo Match Engine (24 Skenario / 48.000 Pertandingan)**:
+  - Simulasi berjalan di latar belakang menggunakan **HTML5 Web Worker** (dengan fallback synchronous otomatis).
+  - PRNG deterministik **Mulberry32** untuk hasil yang konsisten pada seed yang sama.
+  - Interval konfidensi **Wilson Score** untuk batas atas dan bawah statistik kemenangan.
+  - **Deteksi Snapshot Kedaluwarsa (Stale)**: Melacak hash taktik; setiap perubahan sekecil apa pun pada formasi/instruksi akan memberi notifikasi bahwa hasil simulasi perlu diperbarui.
+
+---
+
+## 🚀 Memulai (Getting Started)
+
+### Prasyarat
+- [Node.js](https://nodejs.org) (v18+) atau [Bun](https://bun.sh) (v1.0+)
+
+### Instalasi Dependensi
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+bun install
+# atau
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Menjalankan Server Pengembangan
+```bash
+bun run dev
+# atau
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Buka [http://localhost:3000](http://localhost:3000) pada browser Anda.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🧪 Pengujian & Kualitas Kode
 
-To learn more about Next.js, take a look at the following resources:
+Proyek ini mempertahankan standar kualitas kode yang ketat (0 error TypeScript, 0 error/warning ESLint, dan 100% tes lolos):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+# Menjalankan suite pengujian unit & integrasi (Vitest)
+bun run test
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Menjalankan linter ESLint
+bun run lint
 
-## Deploy on Vercel
+# Membangun produksi Next.js & verifikasi typecheck
+bun run build
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📚 Dokumentasi Teknis Terkait
+
+- [Spesifikasi Teknis Engine v2](docs/ENGINE_SPECIFICATION.md): Formula matematika, bobot pengali posisi, aturan capping cohesion, dan algoritma Monte Carlo.
+- [Rencana Implementasi Taktis v2](docs/TACTICAL_ENGINE_V2_IMPLEMENTATION_PLAN.md): Rincian tahapan migrasi 7 fase arsitektur.
+- [Wiki Taktik Guide to Football](docs/GUIDETOFOOTBALL_TACTICS_WIKI.md): Referensi teori taktik sepak bola modern dan FM24.

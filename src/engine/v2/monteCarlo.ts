@@ -404,3 +404,6 @@ export function runFullSimulationV2(
     isOutdated: false,
   };
 }
+
+export const simulateAllScenariosV2 = runFullSimulationV2;
+

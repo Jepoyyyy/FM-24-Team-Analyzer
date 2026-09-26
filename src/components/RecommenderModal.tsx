@@ -61,8 +61,23 @@ export function RecommenderModal({
     onApplyAtomic(payload);
   };
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="recommender-modal-title"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+    >
       <div className="bg-slate-900 border border-slate-700/80 rounded-2xl w-full max-w-5xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Header Modal */}
         <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/80">
@@ -71,7 +86,7 @@ export function RecommenderModal({
               <Compass className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-black text-white flex items-center gap-2">
+              <h3 id="recommender-modal-title" className="text-base font-black text-white flex items-center gap-2">
                 Rekomendasi Kecocokan Skuad (Tactical Fit Engine v2)
                 <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-800">
                   Global Munkres Assignment

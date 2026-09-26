@@ -432,3 +432,25 @@ export function createAtomicApplyPayload(
     },
   };
 }
+
+/**
+ * Creates atomic undo payload to revert back to previous snapshot.
+ */
+export function createAtomicUndoPayload(applyPayload: AtomicApplyPayloadV2): AtomicApplyPayloadV2 {
+  return {
+    appliedAt: Date.now(),
+    targetRecommendationId: 'undo_' + applyPayload.targetRecommendationId,
+    previousStateSnapshot: {
+      slots: applyPayload.newState.slots.map(s => ({ ...s })),
+      formationId: applyPayload.newState.formationId,
+      instructions: { ...applyPayload.newState.instructions },
+    },
+    newState: {
+      slots: applyPayload.previousStateSnapshot.slots.map(s => ({ ...s })),
+      formationId: applyPayload.previousStateSnapshot.formationId,
+      instructions: { ...applyPayload.previousStateSnapshot.instructions },
+      analysis: applyPayload.newState.analysis,
+    },
+  };
+}
+

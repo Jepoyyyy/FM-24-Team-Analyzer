@@ -296,3 +296,6 @@ export function optimizeSquadAssignmentV2(
     scoreBreakdown,
   };
 }
+
+export const assignPlayersHungarianV2 = optimizeSquadAssignmentV2;
+

@@ -4,9 +4,11 @@ import {
   PlayerInstructionType,
   TeamInstructions,
   TacticSlot,
+  DEFAULT_TEAM_INSTRUCTIONS,
 } from '../../types';
 
 export const SCHEMA_VERSION_V2 = 2;
+export const DEFAULT_TEAM_INSTRUCTIONS_V2: TeamInstructions = DEFAULT_TEAM_INSTRUCTIONS;
 
 // 1. Positional Familiarity v2 (Includes Unknown)
 export type PositionalFamiliarityV2 =
