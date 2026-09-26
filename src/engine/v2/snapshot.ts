@@ -29,7 +29,7 @@ export function createSimulationSnapshot(
   formationId: string,
   slots: SimulationSnapshotV2['slots'],
   teamInstructions: TeamInstructions,
-  playersMap?: Map<string, { attributes: Record<string, number | undefined> }>
+  playersMap?: Map<string, { attributes: Record<string, number | undefined> }> | Record<string, { attributes: Record<string, number | undefined> }>
 ): SimulationSnapshotV2 {
   // Normalize slots deterministically sorted by slotId
   const normalizedSlots = slots
@@ -50,7 +50,9 @@ export function createSimulationSnapshot(
   if (playersMap) {
     for (const slot of normalizedSlots) {
       if (slot.assignedPlayerId) {
-        const p = playersMap.get(slot.assignedPlayerId);
+        const p = playersMap instanceof Map
+          ? playersMap.get(slot.assignedPlayerId)
+          : (playersMap as Record<string, { attributes: Record<string, number | undefined> }>)[slot.assignedPlayerId];
         if (p) {
           playerAttributesDigest[slot.assignedPlayerId] = p.attributes;
         }

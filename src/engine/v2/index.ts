@@ -8,3 +8,5 @@ export * from './metrics';
 export * from './analyzer';
 export * from './hungarian';
 export * from './recommender';
+export * from './monteCarlo';
+export * from './workerClient';
