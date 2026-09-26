@@ -43,7 +43,6 @@ export function recommendFormations(
   const dlPlayers = findBestInPositions(['DL'], 'crossing');
   const cbPlayers = findBestInPositions(['DC'], 'tackling');
   const dmPlayers = findBestInPositions(['DM'], 'tackling');
-  const cmPlayers = findBestInPositions(['MC'], 'vision');
   const amrPlayers = findBestInPositions(['AMR', 'MR'], 'dribbling');
   const amlPlayers = findBestInPositions(['AML', 'ML'], 'dribbling');
   const amcPlayers = findBestInPositions(['AMC'], 'vision');
@@ -52,11 +51,9 @@ export function recommendFormations(
   const bestDR = drPlayers[0];
   const bestDL = dlPlayers[0];
   const bestDM = dmPlayers[0];
-  const bestCM = cmPlayers[0];
   const bestAMC = amcPlayers[0];
   const bestAMR = amrPlayers[0];
   const bestAML = amlPlayers[0];
-  const bestST = stPlayers[0];
 
   // Flank dynamics assessment
   const isRightDefensive = bestDR && (bestDR.attributes.tackling ?? 10) >= 14 && (bestDR.attributes.crossing ?? 10) <= 12;

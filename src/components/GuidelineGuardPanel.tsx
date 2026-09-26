@@ -13,16 +13,13 @@ import {
   AlertOctagon,
   Info,
   CheckCircle2,
-  ChevronRight,
   Zap,
   Layers,
   Scale,
-  Anchor,
   ArrowLeftRight,
   Sparkles,
   Award,
   Check,
-  Activity,
   Sliders,
   User,
 } from 'lucide-react';
@@ -70,7 +67,6 @@ export function GuidelineGuardPanel({
   }, [slots, teamInstructions, playersMap, issues]);
 
   const dangerCount = issues.filter((i) => i.severity === 'danger').length;
-  const warningCount = issues.filter((i) => i.severity === 'warning').length;
 
   const filteredIssues =
     selectedCategory === 'all'

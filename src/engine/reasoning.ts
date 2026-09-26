@@ -2,7 +2,7 @@ import { TacticSlot, Player, TeamInstructions, TacticalIssue, Position, Duty } f
 import { getRoleById } from './roles';
 import { detectFormationShape } from './formations';
 import { calculateTacticalHealth } from './validator';
-import { MENTALITY_KNOWLEDGE, DEFENSIVE_BLOCK_KNOWLEDGE, SET_PIECE_KNOWLEDGE } from '../data/guidetofootballKnowledge';
+import { MENTALITY_KNOWLEDGE, DEFENSIVE_BLOCK_KNOWLEDGE } from '../data/guidetofootballKnowledge';
 
 export interface PlayerTacticalImpact {
   slotId: string;
@@ -72,11 +72,6 @@ export function evaluateFormationReasoningAndImpact(
   const lwRole = leftWing ? getRole(leftWing) : undefined;
   const rwRole = rightWing ? getRole(rightWing) : undefined;
 
-  const lbPlayer = leftBack ? getPlayer(leftBack) : undefined;
-  const rbPlayer = rightBack ? getPlayer(rightBack) : undefined;
-  const lwPlayer = leftWing ? getPlayer(leftWing) : undefined;
-  const rwPlayer = rightWing ? getRole(rightWing) : undefined;
-
   // Central defenders & holding DMs
   const cbs = slots.filter(s => s.position === 'DC');
   const dms = slots.filter(s => s.position === 'DM');
@@ -90,7 +85,7 @@ export function evaluateFormationReasoningAndImpact(
   const reasoningList: LiveFormationEvaluation['reasoning'] = [];
 
   // A. Flank Dynamics
-  let flankTitle = 'Sinergi Flank & Koridor Tepi';
+  const flankTitle = 'Sinergi Flank & Koridor Tepi';
   let flankDesc = '';
   if (leftBack && rightBack && leftWing && rightWing) {
     const isAsym = (lbRole?.code !== rbRole?.code) || (leftBack.duty !== rightBack.duty);
@@ -117,7 +112,7 @@ export function evaluateFormationReasoningAndImpact(
   });
 
   // B. Midfield Architecture & Mentality
-  let midTitle = `Arsitektur Lini Tengah & Mentalitas (${mentalityInfo.name})`;
+  const midTitle = `Arsitektur Lini Tengah & Mentalitas (${mentalityInfo.name})`;
   let midDesc = `Filosofi Mentalitas: ${mentalityInfo.indonesianName} (${mentalityInfo.riskLevel}). ${mentalityInfo.philosophy} `;
   const hasAnchor = dms.some(s => s.roleId === 'anchor' || s.roleId === 'half_back' || (s.roleId === 'dm' && s.duty === 'Defend'));
   const hasPlaymaker = slots.some(s => ['dlp_dm', 'dlp_cm', 'regista', 'roaming_playmaker_dm', 'ap_cm', 'ap_amc'].includes(s.roleId));
@@ -142,7 +137,7 @@ export function evaluateFormationReasoningAndImpact(
   });
 
   // C. Attacking Structure & Final Third
-  let attTitle = 'Pola Penetrasi & Eksekusi Kotak Penalti';
+  const attTitle = 'Pola Penetrasi & Eksekusi Kotak Penalti';
   let attDesc = '';
   if (strikers.length === 1) {
     const stRole = getRole(strikers[0]);
@@ -172,7 +167,7 @@ export function evaluateFormationReasoningAndImpact(
   });
 
   // D. Defensive Foundation & Line of Engagement (GuideToFootball)
-  let defTitle = `Fondasi Pertahanan: ${blockInfo.indonesianName}`;
+  const defTitle = `Fondasi Pertahanan: ${blockInfo.indonesianName}`;
   let defDesc = `Rest Defence terdeteksi ${detected.restDefenceCount} pemain di belakang bola (${detected.restDefenceRating.toUpperCase()}). `;
   if (detected.restDefenceCount >= 4) {
     defDesc += 'Pertahanan sangat solid (Solid 4-Pilar), mengunci semua jalur counter-attack lawan saat tim sedang membombardir pertahanan mereka.';
@@ -190,7 +185,7 @@ export function evaluateFormationReasoningAndImpact(
   });
 
   // E. Tactical Risk Watchpoint
-  let riskTitle = 'Titik Rawan & Antisipasi Taktis Lawan';
+  const riskTitle = 'Titik Rawan & Antisipasi Taktis Lawan';
   let riskDesc = '';
   if (tacticalIssues.length > 0) {
     const topIssue = tacticalIssues[0];

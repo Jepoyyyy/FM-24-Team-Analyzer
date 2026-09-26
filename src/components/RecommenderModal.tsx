@@ -8,11 +8,9 @@ import {
   Sparkles,
   ArrowRight,
   ShieldCheck,
-  ShieldAlert,
   Zap,
   Users,
   Compass,
-  Layers,
 } from 'lucide-react';
 
 interface RecommenderModalProps {

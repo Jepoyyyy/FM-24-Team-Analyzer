@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Player, Position } from '../types';
 import { ALL_ROLES, getRoleById } from '../engine/roles';
 import { calculateRoleSuitability } from '../engine/suitability';
-import { X, Award, Shield, Zap, Sparkles, User, Crosshair, ArrowRightLeft } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 
 interface PlayerAttributesModalProps {
   player: Player;

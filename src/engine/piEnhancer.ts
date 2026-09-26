@@ -1,4 +1,4 @@
-import { Player, RoleDefinition, TailoredPIRecommendation, TacticSlot } from '../types';
+import { Player, RoleDefinition, TailoredPIRecommendation, TacticSlot, PlayerInstructionType } from '../types';
 
 export function getTailoredPIRecommendations(
   player: Player,
@@ -12,7 +12,7 @@ export function getTailoredPIRecommendations(
 
   // Helper cek apakah PI sudah hardcoded atau sudah di-custom
   const alreadyHasPI = (pi: string) =>
-    role.hardcodedPIs.includes(pi as any) || slot.customPIs.includes(pi as any);
+    role.hardcodedPIs.includes(pi as PlayerInstructionType) || slot.customPIs.includes(pi as PlayerInstructionType);
 
   // 1. Long Shots Specialist
   const longShots = attrs.longShots ?? 10;

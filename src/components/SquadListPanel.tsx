@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { Player, TacticSlot, Position } from '../types';
 import { getRoleById } from '../engine/roles';
 import { calculateRoleSuitability } from '../engine/suitability';
-import { Search, Eye, UserCheck, UserPlus, GripVertical, Shield, ChevronRight } from 'lucide-react';
+import { Search, Eye, UserCheck, GripVertical } from 'lucide-react';
 
 interface SquadListPanelProps {
   players: Player[];
@@ -59,8 +59,8 @@ export function SquadListPanel({
       const assignedSlot = playerSlotMap.get(player.id);
       if (categoryFilter === 'starter') return !!assignedSlot;
       if (categoryFilter === 'sub') return !assignedSlot;
-      if (['GK', 'DEF', 'MID', 'ATT'].includes(categoryFilter)) {
-        return player.positions.some(p => isPositionInGroup(p.position, categoryFilter as any));
+      if (categoryFilter === 'GK' || categoryFilter === 'DEF' || categoryFilter === 'MID' || categoryFilter === 'ATT') {
+        return player.positions.some(p => isPositionInGroup(p.position, categoryFilter));
       }
 
       return true;

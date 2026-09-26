@@ -10,10 +10,8 @@ import {
   Lock,
   Sparkles,
   Check,
-  Plus,
   User,
   Sliders,
-  Shield,
   Eye,
   RotateCcw,
 } from 'lucide-react';
@@ -132,7 +130,6 @@ export function PlayerSlotModal({
     const isHardcoded = currentRole?.hardcodedPIs.includes(pi);
     const isIncompatible = currentRole?.incompatiblePIs.includes(pi);
     const isCustomActive = slot.customPIs.includes(pi);
-    const isActive = isHardcoded || isCustomActive;
 
     if (isIncompatible) {
       return (

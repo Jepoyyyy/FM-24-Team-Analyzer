@@ -8,9 +8,7 @@ import {
   Sliders,
   ArrowRightLeft,
   ShieldAlert,
-  RotateCcw,
   Sparkles,
-  Zap,
 } from 'lucide-react';
 
 interface TeamInstructionsModalProps {
@@ -133,7 +131,6 @@ interface FMBoxButtonProps {
   onClick: () => void;
   subtitle?: string;
   className?: string;
-  variant?: 'green' | 'red' | 'dark' | 'head';
   title?: string;
 }
 
@@ -143,7 +140,6 @@ function FMBoxButton({
   onClick,
   subtitle,
   className = '',
-  variant = 'green',
   title,
 }: FMBoxButtonProps) {
   // FM24 Palette: Active is vibrant FM Green (#3ddc73) with dark text
@@ -365,7 +361,7 @@ export function TeamInstructionsModal({
                     { key: 'wide', label: 'Wide' },
                   ]}
                   currentKey={instructions.attackingWidth}
-                  onChange={(val) => update('attackingWidth', val as any)}
+                  onChange={(val) => update('attackingWidth', val as TeamInstructions['attackingWidth'])}
                 />
 
                 {/* Miniature Pitch Graphic with dynamic player spreading */}
@@ -473,7 +469,7 @@ export function TeamInstructionsModal({
                         key={f.key}
                         label={f.label}
                         active={instructions.focusPlay === f.key}
-                        onClick={() => update('focusPlay', (instructions.focusPlay === f.key ? 'balanced' : f.key) as any)}
+                        onClick={() => update('focusPlay', (instructions.focusPlay === f.key ? 'balanced' : f.key) as TeamInstructions['focusPlay'])}
                         className="py-1.5 text-[11px]"
                       />
                     ))}
@@ -500,7 +496,7 @@ export function TeamInstructionsModal({
                     { key: 'direct', label: 'Direct' },
                   ]}
                   currentKey={instructions.passingDirectness}
-                  onChange={(val) => update('passingDirectness', val as any)}
+                  onChange={(val) => update('passingDirectness', val as TeamInstructions['passingDirectness'])}
                 />
 
                 {/* Tempo Slider */}
@@ -515,7 +511,7 @@ export function TeamInstructionsModal({
                     { key: 'much_higher', label: 'Much Higher' },
                   ]}
                   currentKey={instructions.tempo}
-                  onChange={(val) => update('tempo', val as any)}
+                  onChange={(val) => update('tempo', val as TeamInstructions['tempo'])}
                 />
               </div>
 
@@ -532,7 +528,7 @@ export function TeamInstructionsModal({
                   <span className="text-emerald-300 font-bold">Tipe Crossing:</span>
                   <select
                     value={instructions.crossType}
-                    onChange={(e) => update('crossType', e.target.value as any)}
+                    onChange={(e) => update('crossType', e.target.value as TeamInstructions['crossType'])}
                     className="bg-[#14502f] text-white font-bold rounded px-2 py-1 border border-emerald-600 focus:outline-none cursor-pointer"
                   >
                     <option value="whipped">Whipped Crosses (Tukik Cepat)</option>
@@ -708,7 +704,7 @@ export function TeamInstructionsModal({
                         key={d.key}
                         label={d.label}
                         active={instructions.gkDistributionType === d.key}
-                        onClick={() => update('gkDistributionType', d.key as any)}
+                        onClick={() => update('gkDistributionType', d.key as TeamInstructions['gkDistributionType'])}
                         className="py-1.5 text-[11px]"
                       />
                     ))}
@@ -738,7 +734,7 @@ export function TeamInstructionsModal({
                     { key: 'high_press', label: 'High Press' },
                   ]}
                   currentKey={instructions.lineOfEngagement}
-                  onChange={(val) => update('lineOfEngagement', val as any)}
+                  onChange={(val) => update('lineOfEngagement', val as TeamInstructions['lineOfEngagement'])}
                 />
 
                 <DraggableSlider
@@ -752,7 +748,7 @@ export function TeamInstructionsModal({
                     { key: 'much_higher', label: 'Much Higher' },
                   ]}
                   currentKey={instructions.defensiveLine}
-                  onChange={(val) => update('defensiveLine', val as any)}
+                  onChange={(val) => update('defensiveLine', val as TeamInstructions['defensiveLine'])}
                 />
 
                 {/* Vertical Pitch Diagram (Khas Ruben Amorim Screen 3) */}
@@ -806,7 +802,7 @@ export function TeamInstructionsModal({
                     { key: 'much_more_often', label: 'Much More Often' },
                   ]}
                   currentKey={instructions.pressingIntensity}
-                  onChange={(val) => update('pressingIntensity', val as any)}
+                  onChange={(val) => update('pressingIntensity', val as TeamInstructions['pressingIntensity'])}
                 />
 
                 <FMBoxButton

@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Player } from '../types';
 import { DEMO_SQUADS } from '../data/demoSquads';
 import { parseFMHtml } from '../engine/parser';
-import { X, UploadCloud, Users, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
+import { X, UploadCloud, Users, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface SquadImporterModalProps {
   currentSquadId: string;
@@ -38,8 +38,9 @@ export function SquadImporterModal({
         onSelectSquad(teamName, parsedPlayers);
         setSuccessMsg(`Berhasil mengimpor ${parsedPlayers.length} pemain dari ${file.name}!`);
         setTimeout(() => onClose(), 1200);
-      } catch (err: any) {
-        setErrorMsg(err.message || 'Gagal mem-parse file HTML FM24.');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Gagal mem-parse file HTML FM24.';
+        setErrorMsg(msg);
       }
     };
     reader.readAsText(file);

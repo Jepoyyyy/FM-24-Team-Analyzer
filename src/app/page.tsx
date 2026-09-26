@@ -30,13 +30,10 @@ import {
   ShieldCheck,
   ShieldAlert,
   AlertOctagon,
-  Sparkles,
-  AlertTriangle,
   Sliders,
   LayoutGrid,
   RotateCcw,
   ChevronDown,
-  Save,
   Check,
 } from 'lucide-react';
 
@@ -81,32 +78,36 @@ export default function Home() {
 
   // 1. Restore from localStorage on initial client mount
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('fm24_saved_tactic_v1');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.slots && Array.isArray(parsed.slots) && parsed.slots.length > 0) {
-          setSlots(parsed.slots);
+    const timer = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem('fm24_saved_tactic_v1');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.slots && Array.isArray(parsed.slots) && parsed.slots.length > 0) {
+            setSlots(parsed.slots);
+          }
+          if (parsed.teamInstructions) {
+            setTeamInstructions(parsed.teamInstructions);
+          }
+          if (parsed.squadName) {
+            setSquadName(parsed.squadName);
+            const matchedSquad = DEMO_SQUADS.find(s => s.name === parsed.squadName);
+            if (matchedSquad) setPlayers(matchedSquad.players);
+          }
+          if (parsed.currentFormationId) {
+            const found = FORMATION_TEMPLATES.find(f => f.id === parsed.currentFormationId);
+            if (found) setCurrentFormation(found);
+          }
+          setLastSaved('Tersimpan');
         }
-        if (parsed.teamInstructions) {
-          setTeamInstructions(parsed.teamInstructions);
-        }
-        if (parsed.squadName) {
-          setSquadName(parsed.squadName);
-          const matchedSquad = DEMO_SQUADS.find(s => s.name === parsed.squadName);
-          if (matchedSquad) setPlayers(matchedSquad.players);
-        }
-        if (parsed.currentFormationId) {
-          const found = FORMATION_TEMPLATES.find(f => f.id === parsed.currentFormationId);
-          if (found) setCurrentFormation(found);
-        }
-        setLastSaved('Tersimpan');
+      } catch (e) {
+        console.error('Gagal memulihkan taktik tersimpan', e);
+      } finally {
+        setIsHydrated(true);
       }
-    } catch (e) {
-      console.error('Gagal memulihkan taktik tersimpan', e);
-    } finally {
-      setIsHydrated(true);
-    }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, []);
 
   // 2. Persist to localStorage whenever formation, slots, or teamInstructions change
@@ -121,7 +122,9 @@ export default function Home() {
         savedAt: Date.now(),
       };
       localStorage.setItem('fm24_saved_tactic_v1', JSON.stringify(dataToSave));
-      setLastSaved(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const timer = setTimeout(() => setLastSaved(timeStr), 0);
+      return () => clearTimeout(timer);
     } catch (e) {
       console.error('Gagal menyimpan taktik otomatis', e);
     }

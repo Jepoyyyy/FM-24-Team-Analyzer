@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { TacticSlot, TeamInstructions, Player, SandboxSimulationResult } from '../types';
-import { runSandboxSimulation, SANDBOX_OPPONENTS } from '../engine/sandbox';
-import { X, Swords, ShieldAlert, CheckCircle2, AlertOctagon, TrendingUp, Zap, HelpCircle } from 'lucide-react';
+import { TacticSlot, TeamInstructions, Player } from '../types';
+import { runSandboxSimulation } from '../engine/sandbox';
+import { X, Swords, CheckCircle2, AlertOctagon, Zap } from 'lucide-react';
 
 interface SandboxModalProps {
   slots: TacticSlot[];

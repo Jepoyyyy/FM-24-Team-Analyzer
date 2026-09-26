@@ -1,5 +1,4 @@
 import { TacticSlot, TeamInstructions, Player, SandboxOpponent, SandboxSimulationResult } from '../types';
-import { getRoleById } from './roles';
 
 export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
   {
@@ -220,29 +219,6 @@ export function runSandboxSimulation(
   userInstructions: TeamInstructions,
   playersMap: Map<string, Player>
 ): SandboxSimulationResult[] {
-  // 1. Hitung Matched Squad Capacity (Rata-rata rating Starting XI user)
-  let totalKeyAttrScore = 0;
-  let assignedCount = 0;
-
-  for (const slot of userSlots) {
-    if (!slot.assignedPlayerId) continue;
-    const player = playersMap.get(slot.assignedPlayerId);
-    if (!player) continue;
-
-    const role = getRoleById(slot.roleId);
-    if (!role) continue;
-
-    let slotSum = 0;
-    for (const attr of role.keyAttributes) {
-      slotSum += player.attributes[attr] ?? 10;
-    }
-    totalKeyAttrScore += role.keyAttributes.length > 0 ? slotSum / role.keyAttributes.length : 10;
-    assignedCount++;
-  }
-
-  // Rata-rata kualitas skuad user (skala 1-20, default 13 jika kosong)
-  const userAvgRating = assignedCount > 0 ? totalKeyAttrScore / assignedCount : 13;
-
   const results: SandboxSimulationResult[] = [];
 
   // Hitung struktur formasi user
@@ -252,7 +228,6 @@ export function runSandboxSimulation(
   const userDMs = userSlots.filter(s => s.position === 'DM');
   const userMCs = userSlots.filter(s => s.position === 'MC');
   const userHoldingMidfielders = userDMs.filter(s => s.roleId === 'anchor' || s.roleId === 'half_back' || (s.roleId === 'dm' && s.duty === 'Defend'));
-  const userStrikers = userSlots.filter(s => s.position === 'STC');
   const userWingers = userSlots.filter(s => ['AMR', 'AML', 'MR', 'ML'].includes(s.position));
 
   for (const opponent of SANDBOX_OPPONENTS) {
@@ -265,7 +240,7 @@ export function runSandboxSimulation(
     let flankVulnerability = 50;
     let centralDominance = 50;
     let restDefenceStability = 50;
-    let aerialDominance = 50;
+    const aerialDominance = 50;
     let pressingEscape = 50;
 
     // ================= SPECIFIC MATCHUP EVALUATION =================

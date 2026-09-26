@@ -8,8 +8,6 @@ export function auditTactics(
 ): TacticalIssue[] {
   const issues: TacticalIssue[] = [];
 
-  // Helper untuk mencari slot
-  const findSlotsByPos = (posPrefix: string) => slots.filter(s => s.position.startsWith(posPrefix));
   const getSlotRole = (slot: TacticSlot) => getRoleById(slot.roleId);
   const getAssignedPlayer = (slot: TacticSlot) => slot.assignedPlayerId ? playersMap.get(slot.assignedPlayerId) : undefined;
 
@@ -325,10 +323,6 @@ export function auditTactics(
       || (s.roleId === 'cm' && s.duty === 'Defend')
     );
 
-    const hasPlaymakerOrCreator = allCentralMid.some(s =>
-      ['dlp_dm', 'dlp_cm', 'regista', 'roaming_playmaker_dm', 'ap_cm', 'ap_amc'].includes(s.roleId)
-    );
-
     const hasRunnerOrPenetrator = allCentralMid.some(s =>
       ['bbm', 'mezzala', 'segundo_volante'].includes(s.roleId)
       || (s.roleId === 'cm' && s.duty === 'Attack')
@@ -509,6 +503,18 @@ export function auditTactics(
       severity: 'danger',
       category: 'duty_balance',
       suggestedFix: 'Kurangi tugas Attack menjadi 3 atau 4. Berikan tugas Support pada salah satu penyerang sayap atau gelandang.',
+    });
+  }
+
+  // Insufficient Defend Duties
+  if (defendDuties.length < 3 && outfieldSlots.length >= 10) {
+    issues.push({
+      id: 'duty_insufficient_defend',
+      title: 'Struktur Pertahanan Terlalu Tipis (Minim Tugas Bertahan)',
+      description: `Hanya ada ${defendDuties.length} outfield player bertugas Defend/Cover/Stopper. Struktur pertahanan mudah terekspos saat transisi cepat lawan.`,
+      severity: 'warning',
+      category: 'duty_balance',
+      suggestedFix: 'Pastikan minimal 3 outfield player (khususnya bek tengah atau gelandang bertahan) memiliki tugas Defend.',
     });
   }
 
@@ -919,7 +925,7 @@ export function auditTactics(
   // ========================================================
   // 1. Work Ball Into Box vs Shoot More Often
   if (teamInstructions.workBallIntoBox) {
-    const shootMoreSlots = slots.filter(s => s.customPIs.includes('shoot_more_often') || getSlotRole(s)?.hardcodedPIs.includes('shoot_more_often'));
+    const shootMoreSlots = slots.filter(s => s.customPIs?.includes('shoot_more_often') || getSlotRole(s)?.hardcodedPIs?.includes('shoot_more_often'));
     const midfieldShooters = shootMoreSlots.filter(s => s.position === 'MC' || s.position === 'DM');
     if (midfieldShooters.length > 0) {
       issues.push({
@@ -936,7 +942,7 @@ export function auditTactics(
 
   // 2. Play Out of Defence vs CB Take More Risks / Direct Passing
   if (teamInstructions.playOutOfDefence) {
-    const riskyCBs = slots.filter(s => s.position === 'DC' && (s.customPIs.includes('take_more_risks') || getSlotRole(s)?.hardcodedPIs.includes('take_more_risks')));
+    const riskyCBs = slots.filter(s => s.position === 'DC' && (s.customPIs?.includes('take_more_risks') || getSlotRole(s)?.hardcodedPIs?.includes('take_more_risks')));
     if (riskyCBs.length > 0) {
       issues.push({
         id: 'pi_pood_risky_cb_clash',
@@ -952,7 +958,7 @@ export function auditTactics(
 
   // 3. Pass Into Space vs Fewer Risky Passes
   if (teamInstructions.passIntoSpace) {
-    const safePassers = slots.filter(s => (s.position === 'AMC' || s.position === 'MC') && (s.customPIs.includes('fewer_risky_passes') || getSlotRole(s)?.hardcodedPIs.includes('fewer_risky_passes')));
+    const safePassers = slots.filter(s => (s.position === 'AMC' || s.position === 'MC') && (s.customPIs?.includes('fewer_risky_passes') || getSlotRole(s)?.hardcodedPIs?.includes('fewer_risky_passes')));
     if (safePassers.length > 0) {
       issues.push({
         id: 'pi_pass_space_safe_pass_clash',
@@ -968,7 +974,7 @@ export function auditTactics(
 
   // 4. Dribble Mode Clashes
   if (teamInstructions.dribbleMode === 'dribble_less') {
-    const dribblers = slots.filter(s => s.customPIs.includes('dribble_more') || getSlotRole(s)?.hardcodedPIs.includes('dribble_more'));
+    const dribblers = slots.filter(s => s.customPIs?.includes('dribble_more') || getSlotRole(s)?.hardcodedPIs?.includes('dribble_more'));
     if (dribblers.length > 0) {
       issues.push({
         id: 'pi_dribble_less_ti_clash',
@@ -984,7 +990,7 @@ export function auditTactics(
 
   // 5. Early Crosses vs Cross Less Often
   if (teamInstructions.earlyCrosses) {
-    const reluctantCrossers = slots.filter(s => (s.position === 'AMR' || s.position === 'AML' || s.position === 'DR' || s.position === 'DL') && s.customPIs.includes('cross_less_often'));
+    const reluctantCrossers = slots.filter(s => (s.position === 'AMR' || s.position === 'AML' || s.position === 'DR' || s.position === 'DL') && s.customPIs?.includes('cross_less_often'));
     if (reluctantCrossers.length > 0) {
       issues.push({
         id: 'pi_early_cross_less_clash',
@@ -1000,7 +1006,7 @@ export function auditTactics(
 
   // 6. Trap Outside vs Sit Narrower pada Fullbacks
   if (teamInstructions.defensiveTraps === 'trap_outside') {
-    const narrowBacks = slots.filter(s => (s.position === 'DR' || s.position === 'DL') && (s.customPIs.includes('sit_narrower') || getSlotRole(s)?.hardcodedPIs.includes('sit_narrower')));
+    const narrowBacks = slots.filter(s => (s.position === 'DR' || s.position === 'DL') && (s.customPIs?.includes('sit_narrower') || getSlotRole(s)?.hardcodedPIs?.includes('sit_narrower')));
     if (narrowBacks.length > 0) {
       issues.push({
         id: 'pi_trap_outside_narrow_fb_clash',
