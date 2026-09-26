@@ -44,6 +44,58 @@ export function evaluateDataCompleteness(
   };
 }
 
+export function calculateDataCompletenessReport(
+  slots: { slotId: string; roleId: string; duty: string; assignedPlayerId?: string }[],
+  players?: Record<string, PlayerV2 | { attributes?: Record<string, number> }>
+): DataCompletenessReport {
+  if (!players || Object.keys(players).length === 0) {
+    return {
+      totalAttributesExpected: 0,
+      knownAttributesCount: 0,
+      completenessScore: 100,
+      missingKeyAttributes: [],
+      dataConfidence: 100,
+    };
+  }
+
+  const assignedSlots = slots.filter(s => s.assignedPlayerId && players[s.assignedPlayerId]);
+  if (assignedSlots.length === 0) {
+    return {
+      totalAttributesExpected: 0,
+      knownAttributesCount: 0,
+      completenessScore: 100,
+      missingKeyAttributes: [],
+      dataConfidence: 100,
+    };
+  }
+
+  let totalExpected = 0;
+  let totalKnown = 0;
+  const missingKeySet = new Set<string>();
+
+  for (const s of assignedSlots) {
+    const player = players[s.assignedPlayerId!];
+    if (!player || !player.attributes) continue;
+    // Known attributes on player
+    const keys = Object.keys(player.attributes);
+    totalKnown += keys.length;
+    // We expect standard FM24 ~36 attributes
+    totalExpected += Math.max(36, keys.length);
+  }
+
+  const completenessScore = totalExpected > 0 ? Math.round((totalKnown / totalExpected) * 100) : 100;
+  const dataConfidence = Math.max(10, Math.min(100, completenessScore));
+
+  return {
+    totalAttributesExpected: totalExpected,
+    knownAttributesCount: totalKnown,
+    completenessScore,
+    missingKeyAttributes: Array.from(missingKeySet),
+    dataConfidence,
+  };
+}
+
+
 export interface SuitabilityV2Result {
   rawAttributeFit: number; // 0-100
   positionalFamiliarity: PositionalFamiliarityV2;

@@ -3,3 +3,6 @@ export * from './roleDutyProfiles';
 export * from './confidence';
 export * from './snapshot';
 export * from './persistence';
+export * from './phaseShape';
+export * from './metrics';
+export * from './analyzer';
