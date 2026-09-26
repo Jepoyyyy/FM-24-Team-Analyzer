@@ -25,6 +25,17 @@ import { RecommenderModal } from '../components/RecommenderModal';
 import { SandboxModal } from '../components/SandboxModal';
 import { SquadImporterModal } from '../components/SquadImporterModal';
 import {
+  STORAGE_KEY_V2,
+  STORAGE_KEY_V1,
+  migrateV1ToV2,
+  analyzeTacticV2,
+  optimizeSquadAssignmentV2,
+  AtomicApplyPayloadV2,
+  SimulationResultV2,
+  SimulationSnapshotV2,
+  TacticAnalysisV2,
+} from '../engine/v2';
+import {
   Users,
   Info,
   ShieldCheck,
@@ -76,13 +87,23 @@ export default function Home() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
-  // 1. Restore from localStorage on initial client mount
+  // Workflow Stage (Build -> Diagnose -> Improve -> Compare)
+  const [activeStage, setActiveStage] = useState<'build' | 'diagnose' | 'improve' | 'compare'>('build');
+
+  // Atomic Recommendation State (for Apply & Undo)
+  const [lastAppliedPayload, setLastAppliedPayload] = useState<AtomicApplyPayloadV2 | null>(null);
+
+  // Sandbox Simulation Persistence
+  const [savedSimulationResult, setSavedSimulationResult] = useState<SimulationResultV2 | null>(null);
+  const [savedSimulationSnapshot, setSavedSimulationSnapshot] = useState<SimulationSnapshotV2 | null>(null);
+
+  // 1. Restore from localStorage on initial client mount (v2 first, then v1 migration fallback)
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        const saved = localStorage.getItem('fm24_saved_tactic_v1');
-        if (saved) {
-          const parsed = JSON.parse(saved);
+        const savedV2 = localStorage.getItem(STORAGE_KEY_V2);
+        if (savedV2) {
+          const parsed = JSON.parse(savedV2);
           if (parsed.slots && Array.isArray(parsed.slots) && parsed.slots.length > 0) {
             setSlots(parsed.slots);
           }
@@ -98,7 +119,29 @@ export default function Home() {
             const found = FORMATION_TEMPLATES.find(f => f.id === parsed.currentFormationId);
             if (found) setCurrentFormation(found);
           }
-          setLastSaved('Tersimpan');
+          if (parsed.lastSimulationResult) {
+            setSavedSimulationResult(parsed.lastSimulationResult);
+          }
+          if (parsed.lastSimulationSnapshot) {
+            setSavedSimulationSnapshot(parsed.lastSimulationSnapshot);
+          }
+          setLastSaved('Tersimpan (v2)');
+        } else {
+          // Fallback to legacy v1 with non-destructive migration
+          const savedV1 = localStorage.getItem(STORAGE_KEY_V1);
+          if (savedV1) {
+            const migrated = migrateV1ToV2(JSON.parse(savedV1));
+            if (migrated.success && migrated.state) {
+              setSlots(migrated.state.slots as TacticSlot[]);
+              setTeamInstructions(migrated.state.teamInstructions);
+              setSquadName(migrated.state.squadName);
+              const matchedSquad = DEMO_SQUADS.find(s => s.name === migrated.state.squadName);
+              if (matchedSquad) setPlayers(matchedSquad.players);
+              const found = FORMATION_TEMPLATES.find(f => f.id === migrated.state.currentFormationId);
+              if (found) setCurrentFormation(found);
+              setLastSaved('Dimigrasi ke v2');
+            }
+          }
         }
       } catch (e) {
         console.error('Gagal memulihkan taktik tersimpan', e);
@@ -115,20 +158,32 @@ export default function Home() {
     if (!isHydrated) return;
     try {
       const dataToSave = {
+        schemaVersion: 2,
+        slots,
+        teamInstructions,
+        squadName,
+        currentFormationId: currentFormation.id,
+        lastSimulationResult: savedSimulationResult,
+        lastSimulationSnapshot: savedSimulationSnapshot,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(dataToSave));
+      // Keep legacy v1 in sync as backup
+      localStorage.setItem(STORAGE_KEY_V1, JSON.stringify({
         slots,
         teamInstructions,
         squadName,
         currentFormationId: currentFormation.id,
         savedAt: Date.now(),
-      };
-      localStorage.setItem('fm24_saved_tactic_v1', JSON.stringify(dataToSave));
+      }));
+
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const timer = setTimeout(() => setLastSaved(timeStr), 0);
       return () => clearTimeout(timer);
     } catch (e) {
       console.error('Gagal menyimpan taktik otomatis', e);
     }
-  }, [slots, teamInstructions, squadName, currentFormation, isHydrated]);
+  }, [slots, teamInstructions, squadName, currentFormation, savedSimulationResult, savedSimulationSnapshot, isHydrated]);
 
   // Map pemain untuk lookup O(1)
   const playersMap = useMemo(() => {
@@ -136,6 +191,17 @@ export default function Home() {
     players.forEach(p => map.set(p.id, p));
     return map;
   }, [players]);
+
+  const playersRecord = useMemo(() => {
+    const rec: Record<string, Player> = {};
+    players.forEach(p => { rec[p.id] = p; });
+    return rec;
+  }, [players]);
+
+  // LIVE TACTICAL ANALYSIS V2 (4-Phase Shapes, 16 Metrics, Cohesion, Confidence)
+  const analysisV2: TacticAnalysisV2 = useMemo(() => {
+    return analyzeTacticV2(slots, teamInstructions, playersRecord);
+  }, [slots, teamInstructions, playersRecord]);
 
   // LIVE GUIDELINE GUARD AUDIT (Aturan Resmi FM24 + GuideToFootball)
   const tacticalIssues = useMemo(() => {
@@ -147,7 +213,6 @@ export default function Home() {
     return calculateTacticalHealth(slots, tacticalIssues);
   }, [slots, tacticalIssues]);
 
-  const healthScore = healthResult.score;
   const dangerCount = useMemo(() => tacticalIssues.filter(i => i.severity === 'danger').length, [tacticalIssues]);
   const warningCount = useMemo(() => tacticalIssues.filter(i => i.severity === 'warning').length, [tacticalIssues]);
 
@@ -240,21 +305,31 @@ export default function Home() {
     }
   };
 
-  // Handle Terapkan Formasi dari Rekomendasi AI
-  const handleApplyRecommendedFormation = (newSlots: TacticSlot[]) => {
-    setSlots(newSlots);
+  // Handle Terapkan Taktik Rekomendasi secara Atomik
+  const handleApplyAtomic = (payload: AtomicApplyPayloadV2) => {
+    setLastAppliedPayload(payload);
+    setSlots(payload.newState.slots);
+    setTeamInstructions(payload.newState.instructions);
+    const matched = FORMATION_TEMPLATES.find(f => f.id === payload.newState.formationId);
+    if (matched) setCurrentFormation(matched);
+    setIsRecommenderOpen(false);
   };
 
-  // Handle Ganti Skuad
+  // Handle Undo Perubahan Taktik Terakhir
+  const handleUndoAtomic = (payload: AtomicApplyPayloadV2) => {
+    setSlots(payload.previousStateSnapshot.slots);
+    setTeamInstructions(payload.previousStateSnapshot.instructions);
+    const matched = FORMATION_TEMPLATES.find(f => f.id === payload.previousStateSnapshot.formationId);
+    if (matched) setCurrentFormation(matched);
+    setLastAppliedPayload(null);
+  };
+
+  // Handle Ganti Skuad (Optimasi Global Munkres / Hungarian)
   const handleSelectSquad = (newSquadName: string, newPlayers: Player[]) => {
     setSquadName(newSquadName);
     setPlayers(newPlayers);
-    // Assign pemain ke slot yang ada
-    const updatedSlots: TacticSlot[] = slots.map((s, idx) => ({
-      ...s,
-      assignedPlayerId: newPlayers[idx]?.id,
-    }));
-    setSlots(updatedSlots);
+    const assignment = optimizeSquadAssignmentV2(slots, newPlayers);
+    setSlots(assignment.assignedSlots);
   };
 
   // Handle Update Slot Tertentu
@@ -367,6 +442,12 @@ export default function Home() {
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Top Navbar */}
       <Header
+        activeStage={activeStage}
+        onSelectStage={(st) => {
+          setActiveStage(st);
+          if (st === 'diagnose') setRightPanelTab('analyzer');
+          else if (st === 'build') setRightPanelTab('squad');
+        }}
         onOpenRecommender={() => setIsRecommenderOpen(true)}
         onOpenSandbox={() => setIsSandboxOpen(true)}
         onOpenImporter={() => setIsImporterOpen(true)}
@@ -449,7 +530,7 @@ export default function Home() {
                   ) : (
                     <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
                   )}
-                  <span>Taktik: {healthScore}%</span>
+                  <span>Cohesion: {analysisV2.tacticalCohesion}% ({analysisV2.cohesionGrade})</span>
                   {!healthResult.isLayer1Valid ? (
                     <span className="text-[10px] bg-rose-600 text-white px-1.5 rounded-full font-black animate-pulse">
                       FATAL
@@ -644,6 +725,7 @@ export default function Home() {
                 slots={slots}
                 teamInstructions={teamInstructions}
                 playersMap={playersMap}
+                analysisV2={analysisV2}
                 onSelectSlot={(slotId) => setSelectedSlotId(slotId)}
                 onSelectSlotPosition={(pos) => {
                   const matched = slots.find(s => s.position === pos);
@@ -697,21 +779,33 @@ export default function Home() {
         />
       )}
 
-      {/* 4. Modal Rekomendasi Formasi AI */}
+      {/* 4. Modal Rekomendasi Kecocokan Skuad */}
       {isRecommenderOpen && (
         <RecommenderModal
           players={players}
-          onApplyFormation={handleApplyRecommendedFormation}
+          currentSlots={slots}
+          currentFormationId={currentFormation.id}
+          currentInstructions={teamInstructions}
+          onApplyAtomic={handleApplyAtomic}
+          onUndoAtomic={handleUndoAtomic}
+          lastAppliedPayload={lastAppliedPayload}
           onClose={() => setIsRecommenderOpen(false)}
         />
       )}
 
-      {/* 5. Modal Sandbox Tanding (Stress-Testing) */}
+      {/* 5. Modal Sandbox Tanding (Stress-Testing v2) */}
       {isSandboxOpen && (
         <SandboxModal
           slots={slots}
           teamInstructions={teamInstructions}
-          playersMap={playersMap}
+          formationId={currentFormation.id}
+          players={players}
+          savedResult={savedSimulationResult}
+          savedSnapshot={savedSimulationSnapshot}
+          onSaveSimulation={(res, snap) => {
+            setSavedSimulationResult(res);
+            setSavedSimulationSnapshot(snap);
+          }}
           onClose={() => setIsSandboxOpen(false)}
         />
       )}
