@@ -3,6 +3,7 @@ import {
   Duty,
   PlayerInstructionType,
   TeamInstructions,
+  TacticSlot,
 } from '../../types';
 
 export const SCHEMA_VERSION_V2 = 2;
@@ -245,6 +246,58 @@ export interface SimulationResultV2 {
   totalMatches: number; // e.g. 48,000 (24 scenarios x 2,000)
   scenarios: ScenarioResultV2[];
   isOutdated: boolean;
+}
+
+// 7.5 Squad Match Recommendation v2
+export interface KeyPlayerSummaryV2 {
+  playerId: string;
+  name: string;
+  position: Position;
+  roleName: string;
+  duty: Duty;
+  fitScore: number;
+}
+
+export interface RecommendationDiffV2 {
+  formationChanged: boolean;
+  roleChangesCount: number;
+  playerSwapsCount: number;
+  instructionChangesCount: number;
+  details: string[];
+}
+
+export interface SquadRecommendationV2 {
+  id: string;
+  presetName: string;
+  formationName: string;
+  formationShape: string;
+  compositeScore: number; // 0-100 (45% fit, 35% cohesion, 15% risk, 5% confidence)
+  roleFitScore: number; // 0-100
+  tacticalCohesionScore: number; // 0-100
+  dataConfidenceScore: number; // 0-100
+  slots: TacticSlot[];
+  teamInstructions: TeamInstructions;
+  keyPlayers: KeyPlayerSummaryV2[];
+  strengths: string[];
+  weaknesses: string[];
+  diff: RecommendationDiffV2;
+  analysis: TacticAnalysisV2;
+}
+
+export interface AtomicApplyPayloadV2 {
+  appliedAt: number;
+  targetRecommendationId: string;
+  previousStateSnapshot: {
+    slots: TacticSlot[];
+    formationId: string;
+    instructions: TeamInstructions;
+  };
+  newState: {
+    slots: TacticSlot[];
+    formationId: string;
+    instructions: TeamInstructions;
+    analysis: TacticAnalysisV2;
+  };
 }
 
 // 8. Storage Model v2

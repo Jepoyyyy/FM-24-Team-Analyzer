@@ -6,3 +6,5 @@ export * from './persistence';
 export * from './phaseShape';
 export * from './metrics';
 export * from './analyzer';
+export * from './hungarian';
+export * from './recommender';

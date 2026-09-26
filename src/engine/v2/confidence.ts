@@ -6,6 +6,22 @@ export function getFamiliarityMultiplierV2(familiarity?: PositionalFamiliarityV2
   return FAMILIARITY_MULTIPLIER_V2[familiarity] ?? FAMILIARITY_MULTIPLIER_V2.Unknown;
 }
 
+export function getPlayerAttribute(
+  attributes: Record<string, number | undefined>,
+  key: string
+): number | undefined {
+  if (attributes[key] !== undefined && typeof attributes[key] === 'number') {
+    return attributes[key];
+  }
+  const lowerKey = key.toLowerCase();
+  for (const [k, v] of Object.entries(attributes)) {
+    if (k.toLowerCase() === lowerKey && typeof v === 'number') {
+      return v;
+    }
+  }
+  return undefined;
+}
+
 export function evaluateDataCompleteness(
   player: PlayerV2,
   keyAttrs: string[],
@@ -16,7 +32,7 @@ export function evaluateDataCompleteness(
   const missingKey: string[] = [];
 
   for (const attr of expectedAttrs) {
-    const val = player.attributes[attr];
+    const val = getPlayerAttribute(player.attributes, attr);
     if (val !== undefined && typeof val === 'number' && !isNaN(val)) {
       knownCount++;
     } else if (keyAttrs.includes(attr)) {
@@ -129,7 +145,7 @@ export function calculateRoleDutySuitabilityV2(
   let keySum = 0;
   let keyKnownCount = 0;
   for (const attr of profile.keyAttributes) {
-    const val = player.attributes[attr];
+    const val = getPlayerAttribute(player.attributes, attr);
     if (val !== undefined && typeof val === 'number') {
       keySum += val;
       keyKnownCount++;
@@ -145,7 +161,7 @@ export function calculateRoleDutySuitabilityV2(
   let desSum = 0;
   let desKnownCount = 0;
   for (const attr of profile.desirableAttributes) {
-    const val = player.attributes[attr];
+    const val = getPlayerAttribute(player.attributes, attr);
     if (val !== undefined && typeof val === 'number') {
       desSum += val;
       desKnownCount++;
