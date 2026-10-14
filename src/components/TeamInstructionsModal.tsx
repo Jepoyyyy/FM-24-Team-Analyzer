@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { TeamInstructions, Mentality } from '../types';
 import { MENTALITY_KNOWLEDGE } from '../data/guidetofootballKnowledge';
+import { getMentalityProfile, MENTALITY_SOURCE_REFERENCES } from '../engine/v2/mentality';
 import {
   X,
   Sliders,
@@ -233,6 +234,7 @@ export function TeamInstructionsModal({
         {(() => {
           const currentMentality = instructions.mentality || 'positive';
           const detail = MENTALITY_KNOWLEDGE[currentMentality] || MENTALITY_KNOWLEDGE.positive;
+          const engineProfile = getMentalityProfile(currentMentality);
           const MENTALITY_KEYS: Mentality[] = [
             'very_defensive',
             'defensive',
@@ -298,6 +300,37 @@ export function TeamInstructionsModal({
                   </span>
                 </div>
               </div>
+
+              <details className="rounded-lg border border-[#2d8f5c] bg-[#092718] p-2.5 text-[10px] text-emerald-100">
+                <summary className="cursor-pointer font-black text-[#3ddc73]">
+                  Dampak aktual engine · baseline {engineProfile.level > 0 ? `+${engineProfile.level}` : engineProfile.level} dari Balanced
+                </summary>
+                {engineProfile.level === 0 ? (
+                  <p className="mt-2 text-emerald-200/75">Balanced adalah baseline netral. Role, duty, atribut pemain, dan Team Instructions bekerja tanpa modifier mentality.</p>
+                ) : (
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    {engineProfile.effects.map(effect => {
+                      const direction = effect.delta > 0 ? '+' : '';
+                      const unit = effect.unit === 'percentage_points' ? ' pp' : effect.unit === 'pitch_y' ? ' pitch-Y' : effect.unit === 'chains' ? ' chain' : ' poin';
+                      return (
+                        <div key={effect.key} className="rounded-md border border-[#1c6b45] bg-[#0d3b22] p-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-white">{effect.label}</span>
+                            <span className={`font-mono font-black ${effect.delta > 0 ? 'text-amber-300' : 'text-cyan-300'}`}>{direction}{Number(effect.delta.toFixed(1))}{unit}</span>
+                          </div>
+                          <p className="mt-1 leading-relaxed text-emerald-200/70">{effect.reason}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 border-t border-[#1c6b45] pt-2 text-[9px]">
+                  <span className="font-bold text-emerald-300">Source of truth:</span>
+                  {MENTALITY_SOURCE_REFERENCES.map(source => (
+                    <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="text-cyan-300 underline decoration-cyan-700 hover:text-white">{source.label}</a>
+                  ))}
+                </div>
+              </details>
             </div>
           );
         })()}

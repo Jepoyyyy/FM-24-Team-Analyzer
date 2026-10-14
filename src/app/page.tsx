@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Player,
   TacticSlot,
@@ -9,6 +9,7 @@ import {
   Position,
   Mentality,
   DEFAULT_TEAM_INSTRUCTIONS,
+  ImportDraft,
 } from '../types';
 import { DEMO_SQUADS } from '../data/demoSquads';
 import { FORMATION_TEMPLATES, detectFormationShape } from '../engine/formations';
@@ -25,9 +26,11 @@ import { RecommenderModal } from '../components/RecommenderModal';
 import { SandboxModal } from '../components/SandboxModal';
 import { SquadImporterModal } from '../components/SquadImporterModal';
 import {
-  STORAGE_KEY_V2,
-  STORAGE_KEY_V1,
-  migrateV1ToV2,
+  loadTacticalStorageV2,
+  saveTacticalStorageState,
+  commitImportedSnapshot,
+  StorageStateV2,
+  SquadSourceV2,
   analyzeTacticV2,
   optimizeSquadAssignmentV2,
   AtomicApplyPayloadV2,
@@ -52,6 +55,8 @@ export default function Home() {
   // Skuad aktif (default London Red)
   const [squadName, setSquadName] = useState<string>(DEMO_SQUADS[0].name);
   const [players, setPlayers] = useState<Player[]>(DEMO_SQUADS[0].players);
+  const [squadSource, setSquadSource] = useState<SquadSourceV2>({ kind: 'demo', demoId: DEMO_SQUADS[0].id });
+  const [snapshotId, setSnapshotId] = useState<string>(`demo:${DEMO_SQUADS[0].id}`);
 
   // Formasi & Slot Lapangan
   const [currentFormation, setCurrentFormation] = useState<FormationTemplate>(FORMATION_TEMPLATES[6]); // Asym 3-2-4-1
@@ -86,6 +91,7 @@ export default function Home() {
   // Persistence State
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const skipNextPersist = useRef(false);
 
   // Workflow Stage (Build -> Diagnose -> Improve -> Compare)
   const [activeStage, setActiveStage] = useState<'build' | 'diagnose' | 'improve' | 'compare'>('build');
@@ -97,52 +103,23 @@ export default function Home() {
   const [savedSimulationResult, setSavedSimulationResult] = useState<SimulationResultV2 | null>(null);
   const [savedSimulationSnapshot, setSavedSimulationSnapshot] = useState<SimulationSnapshotV2 | null>(null);
 
-  // 1. Restore from localStorage on initial client mount (v2 first, then v1 migration fallback)
+  // 1. Restore through the canonical guarded storage API on initial client mount.
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        const savedV2 = localStorage.getItem(STORAGE_KEY_V2);
-        if (savedV2) {
-          const parsed = JSON.parse(savedV2);
-          if (parsed.slots && Array.isArray(parsed.slots) && parsed.slots.length > 0) {
-            setSlots(parsed.slots);
-          }
-          if (parsed.teamInstructions) {
-            setTeamInstructions(parsed.teamInstructions);
-          }
-          if (parsed.squadName) {
-            setSquadName(parsed.squadName);
-            const matchedSquad = DEMO_SQUADS.find(s => s.name === parsed.squadName);
-            if (matchedSquad) setPlayers(matchedSquad.players);
-          }
-          if (parsed.currentFormationId) {
-            const found = FORMATION_TEMPLATES.find(f => f.id === parsed.currentFormationId);
-            if (found) setCurrentFormation(found);
-          }
-          if (parsed.lastSimulationResult) {
-            setSavedSimulationResult(parsed.lastSimulationResult);
-          }
-          if (parsed.lastSimulationSnapshot) {
-            setSavedSimulationSnapshot(parsed.lastSimulationSnapshot);
-          }
-          setLastSaved('Tersimpan (v2)');
-        } else {
-          // Fallback to legacy v1 with non-destructive migration
-          const savedV1 = localStorage.getItem(STORAGE_KEY_V1);
-          if (savedV1) {
-            const migrated = migrateV1ToV2(JSON.parse(savedV1));
-            if (migrated.success && migrated.state) {
-              setSlots(migrated.state.slots as TacticSlot[]);
-              setTeamInstructions(migrated.state.teamInstructions);
-              setSquadName(migrated.state.squadName);
-              const matchedSquad = DEMO_SQUADS.find(s => s.name === migrated.state.squadName);
-              if (matchedSquad) setPlayers(matchedSquad.players);
-              const found = FORMATION_TEMPLATES.find(f => f.id === migrated.state.currentFormationId);
-              if (found) setCurrentFormation(found);
-              setLastSaved('Dimigrasi ke v2');
-            }
-          }
-        }
+        const loaded = loadTacticalStorageV2();
+        const saved = loaded.state;
+        setSlots(saved.slots as TacticSlot[]);
+        setTeamInstructions(saved.teamInstructions);
+        setSquadName(saved.squadName);
+        setPlayers(saved.players as Player[]);
+        setSquadSource(saved.squadSource);
+        setSnapshotId(saved.snapshotId);
+        const found = FORMATION_TEMPLATES.find(f => f.id === saved.currentFormationId);
+        if (found) setCurrentFormation(found);
+        setSavedSimulationResult(saved.lastSimulationResult ?? null);
+        setSavedSimulationSnapshot(saved.lastSimulationSnapshot ?? null);
+        setLastSaved(loaded.message ?? 'Tersimpan (v2)');
       } catch (e) {
         console.error('Gagal memulihkan taktik tersimpan', e);
       } finally {
@@ -153,29 +130,29 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 2. Persist to localStorage whenever formation, slots, or teamInstructions change
+  // 2. Persist builder state only. Player Lab evaluation is never imported or run here.
   useEffect(() => {
     if (!isHydrated) return;
+    if (skipNextPersist.current) {
+      skipNextPersist.current = false;
+      return;
+    }
     try {
-      const dataToSave = {
+      const dataToSave: StorageStateV2 = {
         schemaVersion: 2,
         slots,
+        players,
+        squadSource,
+        snapshotId,
         teamInstructions,
         squadName,
         currentFormationId: currentFormation.id,
-        lastSimulationResult: savedSimulationResult,
-        lastSimulationSnapshot: savedSimulationSnapshot,
+        lastSimulationResult: savedSimulationResult ?? undefined,
+        lastSimulationSnapshot: savedSimulationSnapshot ?? undefined,
         savedAt: Date.now(),
       };
-      localStorage.setItem(STORAGE_KEY_V2, JSON.stringify(dataToSave));
-      // Keep legacy v1 in sync as backup
-      localStorage.setItem(STORAGE_KEY_V1, JSON.stringify({
-        slots,
-        teamInstructions,
-        squadName,
-        currentFormationId: currentFormation.id,
-        savedAt: Date.now(),
-      }));
+      const saved = saveTacticalStorageState(dataToSave);
+      if (!saved.success) throw new Error(saved.errorMessage);
 
       const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const timer = setTimeout(() => setLastSaved(timeStr), 0);
@@ -183,7 +160,7 @@ export default function Home() {
     } catch (e) {
       console.error('Gagal menyimpan taktik otomatis', e);
     }
-  }, [slots, teamInstructions, squadName, currentFormation, savedSimulationResult, savedSimulationSnapshot, isHydrated]);
+  }, [slots, players, squadSource, snapshotId, teamInstructions, squadName, currentFormation, savedSimulationResult, savedSimulationSnapshot, isHydrated]);
 
   // Map pemain untuk lookup O(1)
   const playersMap = useMemo(() => {
@@ -215,17 +192,6 @@ export default function Home() {
 
   const dangerCount = useMemo(() => tacticalIssues.filter(i => i.severity === 'danger').length, [tacticalIssues]);
   const warningCount = useMemo(() => tacticalIssues.filter(i => i.severity === 'warning').length, [tacticalIssues]);
-
-  // Posisi yang memiliki warning untuk di-highlight di lapangan
-  const affectedPositions = useMemo(() => {
-    const positions: string[] = [];
-    tacticalIssues.forEach(issue => {
-      if (issue.affectedPositions) {
-        positions.push(...issue.affectedPositions);
-      }
-    });
-    return positions;
-  }, [tacticalIssues]);
 
   // LIVE DETECTED FORMATION (Bentuk taktis, rest defence, dan duty distribution real-time)
   const detectedFormation = useMemo(() => {
@@ -324,12 +290,50 @@ export default function Home() {
     setLastAppliedPayload(null);
   };
 
-  // Handle Ganti Skuad (Optimasi Global Munkres / Hungarian)
-  const handleSelectSquad = (newSquadName: string, newPlayers: Player[]) => {
-    setSquadName(newSquadName);
-    setPlayers(newPlayers);
-    const assignment = optimizeSquadAssignmentV2(slots, newPlayers);
+  // Demo presets remain a first-class squad source and use the same canonical storage shape.
+  const handleSelectDemoSquad = (demoId: string) => {
+    const squad = DEMO_SQUADS.find(candidate => candidate.id === demoId);
+    if (!squad) return;
+    setSquadName(squad.name);
+    setPlayers(squad.players);
+    setSquadSource({ kind: 'demo', demoId: squad.id });
+    setSnapshotId(`demo:${squad.id}`);
+    const assignment = optimizeSquadAssignmentV2(slots, squad.players);
     setSlots(assignment.assignedSlots);
+  };
+
+  // Called only by the modal's explicit confirmation. The storage transition writes once;
+  // parse/preview/cancel paths have no access to this callback.
+  const handleConfirmImportedSnapshot = (draft: ImportDraft, importedSquadName: string) => {
+    const assignment = optimizeSquadAssignmentV2(slots, draft.players);
+    const current: StorageStateV2 = {
+      schemaVersion: 2,
+      squadName,
+      players,
+      squadSource,
+      snapshotId,
+      currentFormationId: currentFormation.id,
+      slots: assignment.assignedSlots,
+      teamInstructions,
+      lastSimulationResult: savedSimulationResult ?? undefined,
+      lastSimulationSnapshot: savedSimulationSnapshot ?? undefined,
+      savedAt: Date.now(),
+    };
+    const committed = commitImportedSnapshot(current, {
+      snapshotId: draft.snapshotId,
+      squadName: importedSquadName,
+      players: draft.players,
+      report: draft.report,
+    });
+    if (!committed.save.success) return { success: false, error: committed.save.errorMessage };
+    skipNextPersist.current = true;
+    setSquadName(committed.state.squadName);
+    setPlayers(committed.state.players as Player[]);
+    setSquadSource(committed.state.squadSource);
+    setSnapshotId(committed.state.snapshotId);
+    setSlots(committed.state.slots as TacticSlot[]);
+    setLastSaved('Snapshot impor tersimpan');
+    return { success: true };
   };
 
   // Handle Update Slot Tertentu
@@ -420,7 +424,6 @@ export default function Home() {
   // Reset Keseluruhan Formasi & Instruksi ke Default Preset
   const handleResetToDefault = () => {
     if (typeof window !== 'undefined' && window.confirm('Kembalikan taktik dan formasi ke pengaturan awal?')) {
-      localStorage.removeItem('fm24_saved_tactic_v1');
       const defaultTemplate = FORMATION_TEMPLATES[6];
       setCurrentFormation(defaultTemplate);
       const defaultSlots: TacticSlot[] = defaultTemplate.slots.map((s, idx) => ({
@@ -432,6 +435,8 @@ export default function Home() {
       setTeamInstructions(DEFAULT_TEAM_INSTRUCTIONS);
       setSquadName(DEMO_SQUADS[0].name);
       setPlayers(DEMO_SQUADS[0].players);
+      setSquadSource({ kind: 'demo', demoId: DEMO_SQUADS[0].id });
+      setSnapshotId(`demo:${DEMO_SQUADS[0].id}`);
       setLastSaved('Direset');
     }
   };
@@ -640,7 +645,7 @@ export default function Home() {
             onSwapSlots={handleSwapSlots}
             onMoveSlot={handleMoveSlot}
             onAssignPlayerToSlot={handleAssignPlayerToSlot}
-            affectedPositions={affectedPositions}
+            issues={tacticalIssues}
           />
 
           {/* Banner Keterangan Taktis Formasi */}
@@ -756,6 +761,7 @@ export default function Home() {
           onClose={() => setSelectedSlotId(null)}
           onUpdateSlot={handleUpdateSlot}
           onOpenPlayerAttributes={(p) => setViewingAttributesPlayer(p)}
+          issues={tacticalIssues}
         />
       )}
 
@@ -813,8 +819,9 @@ export default function Home() {
       {/* 6. Modal Impor Skuad (FM24 HTML / Demo) */}
       {isImporterOpen && (
         <SquadImporterModal
-          currentSquadId={DEMO_SQUADS.find(s => s.name === squadName)?.id || ''}
-          onSelectSquad={handleSelectSquad}
+          currentSquadId={squadSource.kind === 'demo' ? squadSource.demoId : ''}
+          onSelectDemo={handleSelectDemoSquad}
+          onConfirmImport={handleConfirmImportedSnapshot}
           onClose={() => setIsImporterOpen(false)}
         />
       )}

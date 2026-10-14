@@ -1,11 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Sparkles, Swords, Upload, Layers, Compass, BarChart3 } from 'lucide-react';
+import Link from 'next/link';
+import { Sparkles, Swords, Upload, Layers, Compass, BarChart3, ScanSearch } from 'lucide-react';
+
+export type WorkspaceStage = 'build' | 'diagnose' | 'improve' | 'compare';
 
 interface HeaderProps {
-  activeStage?: 'build' | 'diagnose' | 'improve' | 'compare';
-  onSelectStage?: (stage: 'build' | 'diagnose' | 'improve' | 'compare') => void;
+  activeStage?: WorkspaceStage;
+  onSelectStage?: (stage: WorkspaceStage) => void;
   onOpenRecommender: () => void;
   onOpenSandbox: () => void;
   onOpenImporter: () => void;
@@ -37,7 +40,7 @@ export function Header({
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Alur Build • Diagnose • Improve • Compare
+                Build • Capacity • Diagnose • Improve • Compare
               </p>
             </div>
           </div>
@@ -54,10 +57,10 @@ export function Header({
 
         {/* 4-Stage Workflow Tabs (Build -> Diagnose -> Improve -> Compare) */}
         {onSelectStage && (
-          <nav aria-label="Alur Taktis" className="flex items-center bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-bold text-slate-400">
+          <nav aria-label="Alur Taktis" className="flex w-full md:w-auto items-center overflow-x-auto bg-slate-950/80 p-1 rounded-xl border border-slate-800 text-xs font-bold text-slate-400">
             <button
               onClick={() => onSelectStage('build')}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition flex shrink-0 items-center gap-1.5 cursor-pointer ${
                 activeStage === 'build'
                   ? 'bg-slate-800 text-cyan-400 shadow-sm'
                   : 'hover:text-slate-200'
@@ -66,9 +69,16 @@ export function Header({
               <Layers className="w-3.5 h-3.5" />
               <span>1. Build</span>
             </button>
+            <Link
+              href="/player-matrix"
+              className="px-3 py-1.5 rounded-lg transition flex shrink-0 items-center gap-1.5 cursor-pointer hover:text-violet-200"
+            >
+              <ScanSearch className="w-3.5 h-3.5" />
+              <span>Player Lab</span>
+            </Link>
             <button
               onClick={() => onSelectStage('diagnose')}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition flex shrink-0 items-center gap-1.5 cursor-pointer ${
                 activeStage === 'diagnose'
                   ? 'bg-slate-800 text-cyan-400 shadow-sm'
                   : 'hover:text-slate-200'
@@ -82,7 +92,7 @@ export function Header({
                 onSelectStage('improve');
                 onOpenRecommender();
               }}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition flex shrink-0 items-center gap-1.5 cursor-pointer ${
                 activeStage === 'improve'
                   ? 'bg-slate-800 text-cyan-400 shadow-sm'
                   : 'hover:text-slate-200'
@@ -96,7 +106,7 @@ export function Header({
                 onSelectStage('compare');
                 onOpenSandbox();
               }}
-              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+              className={`px-3 py-1.5 rounded-lg transition flex shrink-0 items-center gap-1.5 cursor-pointer ${
                 activeStage === 'compare'
                   ? 'bg-slate-800 text-cyan-400 shadow-sm'
                   : 'hover:text-slate-200'

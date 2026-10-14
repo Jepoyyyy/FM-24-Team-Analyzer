@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { TacticSlot, Player, Duty, PlayerInstructionType } from '../types';
+import { TacticSlot, Player, Duty, PlayerInstructionType, TacticalIssue } from '../types';
 import { getRoleById, getRolesByPosition } from '../engine/roles';
 import { calculateRoleSuitability } from '../engine/suitability';
 import { getTailoredPIRecommendations } from '../engine/piEnhancer';
@@ -14,6 +14,7 @@ import {
   Sliders,
   Eye,
   RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface PlayerSlotModalProps {
@@ -24,6 +25,7 @@ interface PlayerSlotModalProps {
   onClose: () => void;
   onUpdateSlot: (updatedSlot: TacticSlot) => void;
   onOpenPlayerAttributes?: (player: Player) => void;
+  issues?: TacticalIssue[];
 }
 
 export function PlayerSlotModal({
@@ -34,11 +36,19 @@ export function PlayerSlotModal({
   onClose,
   onUpdateSlot,
   onOpenPlayerAttributes,
+  issues = [],
 }: PlayerSlotModalProps) {
   const [activeTab, setActiveTab] = useState<'role' | 'instructions'>('role');
   const currentRole = getRoleById(slot.roleId);
   const availableRoles = getRolesByPosition(slot.position);
   const currentPlayer = slot.assignedPlayerId ? playersMap.get(slot.assignedPlayerId) : undefined;
+  const slotIssues = issues.filter(issue =>
+    issue.severity !== 'info' && (
+      issue.affectedSlotIds?.length
+        ? issue.affectedSlotIds.includes(slot.slotId)
+        : issue.affectedPositions?.includes(slot.position)
+    )
+  );
 
   // Hitung suitability
   const suitability = currentPlayer && currentRole
@@ -263,6 +273,32 @@ export function PlayerSlotModal({
           {/* ======================================================== */}
           {activeTab === 'role' && (
             <div className="space-y-5">
+              {slotIssues.length > 0 && (
+                <section className="rounded-xl border border-rose-900/70 bg-rose-950/25 p-3.5" aria-labelledby="slot-warning-title">
+                  <div className="mb-3 flex items-start gap-2">
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+                    <div>
+                      <h3 id="slot-warning-title" className="text-xs font-black text-rose-200">Mengapa posisi {slot.position} ditandai?</h3>
+                      <p className="mt-0.5 text-[10px] text-slate-400">Tanda ini menjelaskan masalah struktur taktik, bukan berarti pemainnya selalu buruk.</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    {slotIssues.map(issue => (
+                      <article key={issue.id} className="border-l-2 border-rose-700 pl-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h4 className="text-[11px] font-black text-white">{issue.title}</h4>
+                          <span className={`rounded px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wider ${issue.severity === 'danger' ? 'bg-rose-900 text-rose-200' : 'bg-amber-900/70 text-amber-200'}`}>{issue.severity === 'danger' ? 'Bahaya' : 'Perhatian'}</span>
+                        </div>
+                        <p className="mt-1 text-[10px] leading-relaxed text-slate-300">{issue.description}</p>
+                        <div className="mt-2 rounded-lg border border-emerald-900/60 bg-emerald-950/30 px-2.5 py-2 text-[10px] leading-relaxed text-emerald-200">
+                          <span className="font-black">Cara memperbaiki:</span> {issue.suggestedFix}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {/* 1. Pilih Pemain */}
               <div>
                 <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-1.5">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { TacticSlot, Player, Duty, Position } from '../types';
+import { TacticSlot, Player, Duty, Position, TacticalIssue } from '../types';
 import { getRoleById } from '../engine/roles';
 import { calculateRoleSuitability } from '../engine/suitability';
 import { User, AlertTriangle } from 'lucide-react';
@@ -61,7 +61,7 @@ interface PitchBoardProps {
   onSwapSlots: (sourceSlotId: string, targetSlotId: string) => void;
   onMoveSlot: (slotId: string, newX: number, newY: number, newPosition?: Position) => void;
   onAssignPlayerToSlot?: (slotId: string, playerId: string) => void;
-  affectedPositions?: string[];
+  issues?: TacticalIssue[];
 }
 
 export function PitchBoard({
@@ -72,7 +72,7 @@ export function PitchBoard({
   onSwapSlots,
   onMoveSlot,
   onAssignPlayerToSlot,
-  affectedPositions = [],
+  issues = [],
 }: PitchBoardProps) {
   const pitchRef = useRef<HTMLDivElement>(null);
   const [draggedSlotId, setDraggedSlotId] = useState<string | null>(null);
@@ -268,7 +268,15 @@ export function PitchBoard({
           const isSelected = selectedSlotId === slot.slotId;
           const isBeingDragged = draggedSlotId === slot.slotId;
           const isHoveredTarget = hoveredSlotId === slot.slotId && draggedSlotId !== slot.slotId;
-          const hasWarning = affectedPositions.includes(slot.position);
+          const slotIssues = issues.filter(issue =>
+            issue.severity !== 'info' && (
+              issue.affectedSlotIds?.length
+                ? issue.affectedSlotIds.includes(slot.slotId)
+                : issue.affectedPositions?.includes(slot.position)
+            )
+          );
+          const hasWarning = slotIssues.length > 0;
+          const hasDanger = slotIssues.some(issue => issue.severity === 'danger');
 
           let suitabilityScore = 0;
           if (player && role) {
@@ -309,7 +317,9 @@ export function PitchBoard({
                       : isSelected
                       ? 'ring-4 ring-cyan-400 border-white bg-slate-900 scale-110 shadow-cyan-500/50'
                       : hasWarning
-                      ? 'border-rose-500 bg-slate-900 ring-2 ring-rose-400 animate-pulse'
+                      ? hasDanger
+                        ? 'border-rose-500 bg-slate-900 ring-2 ring-rose-400 animate-pulse'
+                        : 'border-amber-400 bg-slate-900 ring-2 ring-amber-300'
                       : 'border-white/80 bg-slate-900/90 group-hover:scale-105 group-hover:border-cyan-300'
                   }`}
                 >
@@ -332,7 +342,11 @@ export function PitchBoard({
 
                   {/* Warning Alert Icon jika ada clash */}
                   {hasWarning && (
-                    <div className="absolute -bottom-1 -left-1 bg-rose-600 text-white rounded-full p-0.5 shadow">
+                    <div
+                      className={`absolute -bottom-1 -left-1 rounded-full p-0.5 text-white shadow ${hasDanger ? 'bg-rose-600' : 'bg-amber-500'}`}
+                      title={`${slotIssues.length} isu pada posisi ${slot.position}: ${slotIssues.map(issue => issue.title).join('; ')}. Klik pemain untuk melihat detail dan solusi.`}
+                      aria-label={`${slotIssues.length} isu taktis. Klik pemain untuk melihat detail.`}
+                    >
                       <AlertTriangle className="w-3.5 h-3.5" />
                     </div>
                   )}
