@@ -14,6 +14,8 @@ import { calculatePlayerSlotFit } from './hungarian';
 import { analyzeTacticV2 } from './analyzer';
 import { hashStringDeterministic } from './snapshot';
 import { SANDBOX_OPPONENTS } from '../sandbox';
+import { analyzeTacticalMatchupV2 } from './matchup';
+import { getMentalityProfile } from './mentality';
 
 // Simple deterministic PRNG: Mulberry32
 export function createMulberry32(seed: number): () => number {
@@ -174,6 +176,9 @@ export function simulateScenario(
   // Analyze both sides
   const userAnalysis = analyzeTacticV2(snapshot.slots as TacticSlot[], snapshot.teamInstructions, players);
   const oppAnalysis = analyzeTacticV2(opponent.slots, opponent.instructions);
+  const tacticalMatchup = analyzeTacticalMatchupV2(snapshot, opponent, players);
+  const userMentality = getMentalityProfile(snapshot.teamInstructions.mentality);
+  const opponentMentality = getMentalityProfile(opponent.instructions.mentality);
 
   const uMetrics = userAnalysis.metrics;
   const oMetrics = oppAnalysis.metrics;
@@ -195,7 +200,9 @@ export function simulateScenario(
     100;
 
   // Base possession percentage
-  const basePossession = 50 + (userControl - oppControl) * 20 + capacityDiff * 2.2;
+  const inPossessionPhase = tacticalMatchup.phases.find(phase => phase.id === 'in_possession')!;
+  const defensiveTransitionPhase = tacticalMatchup.phases.find(phase => phase.id === 'defensive_transition')!;
+  const basePossession = 50 + (userControl - oppControl) * 16 + (inPossessionPhase.score - 50) * 0.12 + capacityDiff * 2.2;
   const avgPossession = Math.max(30, Math.min(70, Math.round(basePossession * 10) / 10));
 
   let winCount = 0;
@@ -205,13 +212,19 @@ export function simulateScenario(
   let totalGoalsAgainst = 0;
   let totalXGFor = 0;
   let totalXGAgainst = 0;
+  let totalBoxEntriesFor = 0;
+  let totalBoxEntriesAgainst = 0;
+  let totalDangerousTurnovers = 0;
 
   // Fatigue risk modifier
   const fatiguePenalty = uMetrics.physicalDemandFatigueRisk > 75 ? (uMetrics.physicalDemandFatigueRisk - 75) * 0.005 : 0;
 
   for (let m = 0; m < matchesCount; m++) {
     // 25 - 35 possession chains per match
-    const chains = 25 + Math.floor(prng() * 11);
+    const chainModifier = Math.round(
+      (userMentality.modifiers.possessionChainCount + opponentMentality.modifiers.possessionChainCount) / 2
+    );
+    const chains = Math.max(20, 25 + chainModifier + Math.floor(prng() * 11));
     let matchGoalsFor = 0;
     let matchGoalsAgainst = 0;
     let matchXGFor = 0;
@@ -232,13 +245,18 @@ export function simulateScenario(
         const oppDefQuality =
           (oMetrics.defensiveLineProtection * 0.5 + oMetrics.restDefenceCoverage * 0.5) / 100;
 
-        const shotProb = Math.max(0.08, 0.28 + (attackQuality - oppDefQuality) * 0.2 + capacityDiff * 0.02 - currentFatigue);
-        if (prng() < shotProb) {
+        const entryProb = Math.max(0.12, Math.min(0.72, 0.36 + (attackQuality - oppDefQuality) * 0.22 + (inPossessionPhase.score - 50) * 0.003 + capacityDiff * 0.012 + userMentality.modifiers.chanceCreationProbability - currentFatigue));
+        if (prng() < entryProb) {
+          totalBoxEntriesFor++;
+          const shotProb = Math.max(0.2, Math.min(0.82, 0.48 + (uMetrics.boxOccupation - oMetrics.defensiveLineProtection) * 0.003));
+          if (prng() >= shotProb) continue;
           const xg = 0.05 + prng() * 0.35 + (uMetrics.boxOccupation > 70 ? 0.08 : 0);
           matchXGFor += xg;
           if (prng() < xg) {
             matchGoalsFor++;
           }
+        } else if (prng() < Math.max(0.04, (55 - defensiveTransitionPhase.score) * 0.006 + userMentality.modifiers.possessionTurnoverProbability)) {
+          totalDangerousTurnovers++;
         }
       } else {
         // Attack chain for opponent
@@ -248,8 +266,11 @@ export function simulateScenario(
         const userDefence =
           (uMetrics.defensiveLineProtection * 0.5 + uMetrics.restDefenceCoverage * 0.5) / 100;
 
-        const shotProb = Math.max(0.08, 0.28 + (oppAttack - userDefence) * 0.2 - capacityDiff * 0.02 + currentFatigue);
-        if (prng() < shotProb) {
+        const entryProb = Math.max(0.12, Math.min(0.72, 0.36 + (oppAttack - userDefence) * 0.22 + (50 - defensiveTransitionPhase.score) * 0.003 - capacityDiff * 0.012 + opponentMentality.modifiers.chanceCreationProbability + currentFatigue));
+        if (prng() < entryProb) {
+          totalBoxEntriesAgainst++;
+          const shotProb = Math.max(0.2, Math.min(0.82, 0.48 + (oMetrics.boxOccupation - uMetrics.defensiveLineProtection) * 0.003));
+          if (prng() >= shotProb) continue;
           const xg = 0.05 + prng() * 0.35;
           matchXGAgainst += xg;
           if (prng() < xg) {
@@ -278,10 +299,13 @@ export function simulateScenario(
   const avgGoalsAgainst = Math.round((totalGoalsAgainst / matchesCount) * 100) / 100;
   const avgXGFor = Math.round((totalXGFor / matchesCount) * 100) / 100;
   const avgXGAgainst = Math.round((totalXGAgainst / matchesCount) * 100) / 100;
+  const avgBoxEntriesFor = Math.round((totalBoxEntriesFor / matchesCount) * 10) / 10;
+  const avgBoxEntriesAgainst = Math.round((totalBoxEntriesAgainst / matchesCount) * 10) / 10;
+  const avgDangerousTurnovers = Math.round((totalDangerousTurnovers / matchesCount) * 10) / 10;
 
   // Matchup Rating: 0 - 100 tactical advantage (not raw win prob)
   const xGDiff = avgXGFor - avgXGAgainst;
-  const matchupRating = Math.max(5, Math.min(95, Math.round(50 + xGDiff * 22 + (avgPossession - 50) * 0.8)));
+  const matchupRating = Math.max(5, Math.min(95, Math.round(tacticalMatchup.overallScore * 0.7 + (50 + xGDiff * 18) * 0.3)));
 
   // Identify decisive phase & top advantages/risks
   let decisivePhase: ScenarioResultV2['decisivePhase'] = 'midfield_press';
@@ -344,6 +368,10 @@ export function simulateScenario(
     topRisks: topRisks.slice(0, 3),
     decisivePhase,
     confidenceInterval,
+    tacticalMatchup,
+    avgBoxEntriesFor,
+    avgBoxEntriesAgainst,
+    avgDangerousTurnovers,
   };
 }
 
@@ -357,7 +385,7 @@ export function runFullSimulationV2(
   onProgress?: (progress: number, scenarioIndex: number, totalScenarios: number) => void
 ): SimulationResultV2 {
   const matchesPerScenario = config.matchesPerScenario || 2000;
-  const engineVersion = config.engineVersion || '2.0.0';
+  const engineVersion = config.engineVersion || '2.1.0';
 
   const { capacityU, stdDevD } = calculateTeamCapacity(snapshot.slots as TacticSlot[], players);
   const tiers = calculateTierCapacities(capacityU, stdDevD);
@@ -406,4 +434,3 @@ export function runFullSimulationV2(
 }
 
 export const simulateAllScenariosV2 = runFullSimulationV2;
-

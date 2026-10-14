@@ -634,6 +634,7 @@ export function auditTactics(
           severity: 'warning',
           category: 'player_capacity',
           affectedPositions: [slot.position],
+          affectedSlotIds: [slot.slotId],
           suggestedFix: 'Gunakan kiper dengan atribut fisik & antisipasi lebih tinggi, atau turunkan garis pertahanan.',
         });
       }
@@ -651,6 +652,7 @@ export function auditTactics(
           severity: 'danger',
           category: 'player_capacity',
           affectedPositions: [slot.position],
+          affectedSlotIds: [slot.slotId],
           suggestedFix: 'Turunkan garis pertahanan tim ke Standard atau pasang bek dengan recovery pace lebih tinggi.',
         });
       }
@@ -668,6 +670,7 @@ export function auditTactics(
           severity: 'warning',
           category: 'player_capacity',
           affectedPositions: [slot.position],
+          affectedSlotIds: [slot.slotId],
           suggestedFix: 'Ganti role bek menjadi Central Defender (Defend) biasa, atau matikan instruksi Play Out of Defence.',
         });
       }
@@ -686,6 +689,7 @@ export function auditTactics(
           severity: 'warning',
           category: 'player_capacity',
           affectedPositions: [slot.position],
+          affectedSlotIds: [slot.slotId],
           suggestedFix: 'Lebih aman ubah perannya menjadi Central Defender (Defend).',
         });
       }
@@ -703,6 +707,7 @@ export function auditTactics(
           severity: 'warning',
           category: 'player_capacity',
           affectedPositions: [slot.position],
+          affectedSlotIds: [slot.slotId],
           suggestedFix: 'Gunakan pemain berpostur kekar/bek tengah alami untuk peran IFB.',
         });
       }
@@ -720,6 +725,7 @@ export function auditTactics(
           severity: 'warning',
           category: 'player_capacity',
           affectedPositions: [slot.position],
+          affectedSlotIds: [slot.slotId],
           suggestedFix: 'Ubah menjadi Full-Back / Wing-Back biasa, atau latih atribut passing pemain.',
         });
       }
@@ -737,6 +743,7 @@ export function auditTactics(
           severity: 'danger',
           category: 'player_capacity',
           affectedPositions: [slot.position],
+          affectedSlotIds: [slot.slotId],
           suggestedFix: 'Ganti role penyerang menjadi Advanced Forward, Deep Lying Forward, atau Poacher.',
         });
       }
@@ -935,6 +942,7 @@ export function auditTactics(
         severity: 'warning',
         category: 'pi_ti_clash',
         affectedPositions: midfieldShooters.map(s => s.position),
+        affectedSlotIds: midfieldShooters.map(s => s.slotId),
         suggestedFix: 'Hapus PI Shoot More Often pada gelandang tengah agar fokus menyuplai bola ke kotak penalti.',
       });
     }
@@ -951,6 +959,7 @@ export function auditTactics(
         severity: 'warning',
         category: 'pi_ti_clash',
         affectedPositions: riskyCBs.map(s => s.position),
+        affectedSlotIds: riskyCBs.map(s => s.slotId),
         suggestedFix: 'Kembalikan passing bek ke Shorter atau Fewer Risky Passes.',
       });
     }
@@ -967,6 +976,7 @@ export function auditTactics(
         severity: 'warning',
         category: 'pi_ti_clash',
         affectedPositions: safePassers.map(s => s.position),
+        affectedSlotIds: safePassers.map(s => s.slotId),
         suggestedFix: 'Berikan PI Take More Risks pada playmaker.',
       });
     }
@@ -983,6 +993,7 @@ export function auditTactics(
         severity: 'warning',
         category: 'pi_ti_clash',
         affectedPositions: dribblers.map(s => s.position),
+        affectedSlotIds: dribblers.map(s => s.slotId),
         suggestedFix: 'Sinkronkan dribel mode tim atau sesuaikan PI pemain.',
       });
     }
@@ -999,6 +1010,7 @@ export function auditTactics(
         severity: 'warning',
         category: 'pi_ti_clash',
         affectedPositions: reluctantCrossers.map(s => s.position),
+        affectedSlotIds: reluctantCrossers.map(s => s.slotId),
         suggestedFix: 'Hapus PI Cross Less Often pada sayap.',
       });
     }
@@ -1015,6 +1027,7 @@ export function auditTactics(
         severity: 'danger',
         category: 'pi_ti_clash',
         affectedPositions: narrowBacks.map(s => s.position),
+        affectedSlotIds: narrowBacks.map(s => s.slotId),
         suggestedFix: 'Hapus Sit Narrower atau gunakan Stay Wider pada bek sayap.',
       });
     }

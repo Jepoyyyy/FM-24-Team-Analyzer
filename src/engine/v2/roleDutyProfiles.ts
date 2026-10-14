@@ -1,7 +1,8 @@
 import { RoleDutyProfile } from './types';
 import { Duty } from '../../types';
+import { ALL_ROLES } from '../roles';
 
-export const ROLE_DUTY_PROFILES: RoleDutyProfile[] = [
+const EXPLICIT_ROLE_DUTY_PROFILES: RoleDutyProfile[] = [
   // =========================================================================
   // 1. GOALKEEPER ROLES
   // =========================================================================
@@ -1045,15 +1046,117 @@ export const ROLE_DUTY_PROFILES: RoleDutyProfile[] = [
   },
 ];
 
+const dutyDepth: Record<Duty, RoleDutyProfile['movement']['depth']> = {
+  Defend: 'stay_back',
+  Stopper: 'balanced',
+  Cover: 'stay_back',
+  Support: 'balanced',
+  Attack: 'get_further_forward',
+  Automatic: 'balanced',
+};
+
+function inferMissingProfile(
+  role: (typeof ALL_ROLES)[number],
+  duty: Duty
+): RoleDutyProfile {
+  const pis = role.hardcodedPIs;
+  const isGoalkeeper = role.position === 'GK';
+  const isDefender = ['DC', 'DR', 'DL', 'WBR', 'WBL'].includes(role.position);
+  const isWide = ['DR', 'DL', 'WBR', 'WBL', 'MR', 'ML', 'AMR', 'AML'].includes(role.position);
+  const isForward = role.position === 'STC';
+  const attacks = duty === 'Attack';
+
+  return {
+    id: `${role.id}_${duty.toLowerCase()}`,
+    roleId: role.id,
+    roleName: role.name,
+    code: role.code,
+    duty,
+    compatiblePositions: [role.position],
+    keyAttributes: role.keyAttributes,
+    desirableAttributes: role.desirableAttributes,
+    movement: {
+      width: pis.includes('stay_wider') || pis.includes('run_wide_with_ball')
+        ? 'stay_wider'
+        : pis.includes('sit_narrower') || pis.includes('cut_inside_with_ball')
+          ? 'sit_narrower'
+          : 'normal',
+      depth: dutyDepth[duty],
+      lateralMovement: pis.includes('roam_from_position')
+        ? 'roam_from_position'
+        : pis.includes('move_into_channels') ? 'channel_runner' : 'disciplined',
+      roaming: pis.includes('roam_from_position'),
+      boxRuns: attacks && (isForward || pis.includes('get_further_forward'))
+        ? 'primary_target'
+        : attacks ? 'frequent' : duty === 'Support' ? 'situational' : 'never',
+    },
+    possession: {
+      passingRisk: pis.includes('take_more_risks')
+        ? 'take_more_risks'
+        : pis.includes('fewer_risky_passes') ? 'fewer_risky_passes' : 'standard',
+      progressionRole: isForward
+        ? 'finisher'
+        : pis.includes('take_more_risks') ? 'final_ball_creator'
+          : pis.includes('dribble_more') ? 'carrier'
+            : isDefender || isGoalkeeper ? 'build_up_outlet' : 'progressor',
+      carrying: pis.includes('dribble_more')
+        ? 'dribble_more'
+        : pis.includes('dribble_less') ? 'dribble_less' : 'standard',
+      crossing: isWide && !pis.includes('cross_less_often') ? 'standard' : 'cross_less',
+      ballAttraction: pis.includes('take_more_risks') ? 'distributor' : 'neutral',
+    },
+    defensive: {
+      pressingIntensity: pis.includes('close_down_more')
+        ? 'more_often'
+        : pis.includes('close_down_less') ? 'less_often' : 'standard',
+      screening: ['DM', 'MC'].includes(role.position) && duty === 'Defend'
+        ? 'high'
+        : isDefender ? 'low' : 'none',
+      marking: pis.includes('mark_tighter') ? 'tight' : 'zonal',
+      recoveryTrackback: isDefender ? 'high' : isForward ? 'low' : 'moderate',
+      aerialCover: isGoalkeeper || isDefender || role.keyAttributes.includes('heading'),
+    },
+    transition: {
+      offensiveTransition: attacks || isForward ? 'counter_runner' : 'hold_shape',
+      defensiveTransition: isDefender || duty === 'Defend'
+        ? 'rest_defence_cover'
+        : pis.includes('close_down_more') ? 'counterpress_harasser' : 'regroup_fall_back',
+    },
+    lockedPIs: [...role.hardcodedPIs],
+    allowedPIs: [],
+    incompatiblePIs: [...role.incompatiblePIs],
+    description: role.description,
+    evidence: {
+      basis: 'engine_inference',
+      confidence: 'low',
+      sourceIds: ['SI_ROLE_DESCRIPTION', 'SI_LOCKED_PLAYER_INSTRUCTIONS'],
+      notes: 'Fallback transparan dari deskripsi role, duty, dan PI; perlu validasi observasional FM24.',
+    },
+  };
+}
+
+const explicitKeys = new Set(EXPLICIT_ROLE_DUTY_PROFILES.map(profile => `${profile.roleId}:${profile.duty}`));
+const inferredProfiles = ALL_ROLES.flatMap(role =>
+  role.availableDuties
+    .filter(duty => !explicitKeys.has(`${role.id}:${duty}`))
+    .map(duty => inferMissingProfile(role, duty))
+);
+
+export const ROLE_DUTY_PROFILES: RoleDutyProfile[] = [
+  ...EXPLICIT_ROLE_DUTY_PROFILES.map(profile => ({
+    ...profile,
+    evidence: profile.evidence ?? {
+      basis: 'engine_inference' as const,
+      confidence: 'medium' as const,
+      sourceIds: ['SI_ROLE_DESCRIPTION', 'TACTICAL_INTERPRETATION'],
+    },
+  })),
+  ...inferredProfiles,
+];
+
 // Helper lookup
 export function getRoleDutyProfile(roleId: string, duty: Duty): RoleDutyProfile | undefined {
-  // First try exact profile id: e.g. "bpd_defend"
-  const exactKey = `${roleId}_${duty.toLowerCase()}`;
-  const found = ROLE_DUTY_PROFILES.find(p => p.id === exactKey);
-  if (found) return found;
-
-  // Fallback match roleId and allowed duty
-  return ROLE_DUTY_PROFILES.find(p => p.roleId === roleId && (p.duty === duty || p.duty === 'Support'));
+  return ROLE_DUTY_PROFILES.find(profile => profile.roleId === roleId && profile.duty === duty);
 }
 
 export function getAllRoleDutyProfiles(): RoleDutyProfile[] {

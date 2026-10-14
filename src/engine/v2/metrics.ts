@@ -1,6 +1,7 @@
 import { TacticSlot, TeamInstructions, Player } from '../../types';
 import { PlayerV2, TacticalMetricsV2, PhaseShape } from './types';
 import { getRoleDutyProfile } from './roleDutyProfiles';
+import { getMentalityProfile } from './mentality';
 
 function clamp(val: number, min = 0, max = 100): number {
   return Math.max(min, Math.min(max, Math.round(val)));
@@ -19,8 +20,10 @@ function getAvgAttribute(
   for (const s of targetSlots) {
     if (!s.assignedPlayerId) continue;
     const p = players[s.assignedPlayerId];
-    if (p && p.attributes && typeof p.attributes[attrName] === 'number') {
-      sum += p.attributes[attrName] as number;
+    const normalizedName = attrName.charAt(0).toLowerCase() + attrName.slice(1);
+    const value = p?.attributes?.[attrName] ?? p?.attributes?.[normalizedName];
+    if (typeof value === 'number') {
+      sum += value;
       count++;
     }
   }
@@ -38,6 +41,7 @@ export function calculateTacticalMetricsV2(
   players?: Record<string, PlayerV2 | Player>
 ): TacticalMetricsV2 {
   const coords = phaseShape.playerCoords;
+  const mentality = getMentalityProfile(instructions.mentality);
 
   // 1. Width Left & Right
   let widthLeftRaw = 20;
@@ -68,6 +72,8 @@ export function calculateTacticalMetricsV2(
     widthLeftRaw -= 10;
     widthRightRaw -= 10;
   }
+  widthLeftRaw += mentality.modifiers.width;
+  widthRightRaw += mentality.modifiers.width;
 
   const widthLeft = clamp(widthLeftRaw);
   const widthRight = clamp(widthRightRaw);
@@ -92,8 +98,7 @@ export function calculateTacticalMetricsV2(
 
   let depthRaw = 25 + runnerCount * 14;
   if (instructions.passIntoSpace) depthRaw += 12;
-  if (instructions.mentality === 'attacking' || instructions.mentality === 'very_attacking') depthRaw += 10;
-  if (instructions.mentality === 'defensive' || instructions.mentality === 'very_defensive') depthRaw -= 15;
+  depthRaw += mentality.modifiers.forwardRuns;
   const depthAndRunners = clamp(depthRaw);
 
   // 3. Box Occupation
@@ -106,6 +111,7 @@ export function calculateTacticalMetricsV2(
   }
   let boxRaw = 20 + boxArrivers * 20;
   if (instructions.workBallIntoBox) boxRaw += 8;
+  boxRaw += mentality.modifiers.boxCommitment;
   const boxOccupation = clamp(boxRaw);
 
   // 4. Central & Half-Space Occupation
@@ -185,6 +191,7 @@ export function calculateTacticalMetricsV2(
   else if (instructions.pressingIntensity === 'less_often') pressRaw -= 10;
 
   if (instructions.preventShortGkDistribution) pressRaw += 10;
+  pressRaw += mentality.modifiers.pressingUrgency;
   const pressingAccessAndSupport = clamp(pressRaw);
 
   // 8. Block Compactness
@@ -237,6 +244,7 @@ export function calculateTacticalMetricsV2(
   else if (rdCount === 3) restDefRaw = 70;
   else if (rdCount === 2) restDefRaw = 40;
   else restDefRaw = 15;
+  restDefRaw += mentality.modifiers.restDefence;
 
   const restDefenceCoverage = clamp(restDefRaw);
 
@@ -251,6 +259,7 @@ export function calculateTacticalMetricsV2(
   if (instructions.whenWonPossession === 'counter') counterRaw += 22;
   if (instructions.passIntoSpace) counterRaw += 10;
   if (instructions.tempo === 'higher' || instructions.tempo === 'much_higher') counterRaw += 8;
+  counterRaw += mentality.modifiers.counterIntent;
   const counterattackThreat = clamp(counterRaw);
 
   // 12. Counterpress & Regroup Readiness
@@ -295,6 +304,7 @@ export function calculateTacticalMetricsV2(
   if (instructions.lineOfEngagement === 'high_press') fatigueScore += 15;
   if (instructions.whenLostPossession === 'counter_press') fatigueScore += 15;
   if (instructions.tackling === 'get_stuck_in') fatigueScore += 10;
+  fatigueScore += mentality.modifiers.fatigueRisk;
   const avgStamina = getAvgAttribute(slots, players, 'Stamina');
   if (avgStamina !== undefined) fatigueScore -= (avgStamina - 10) * 1.2;
 

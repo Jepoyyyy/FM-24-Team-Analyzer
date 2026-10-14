@@ -4,6 +4,9 @@ import {
   PlayerInstructionType,
   TeamInstructions,
   TacticSlot,
+  ImportedIdentity,
+  ImportReport,
+  PlayerPerformanceData,
   DEFAULT_TEAM_INSTRUCTIONS,
 } from '../../types';
 
@@ -45,6 +48,10 @@ export interface PlayerV2 {
   attributes: Record<string, number | undefined>;
   traits?: string[];
   dataCompleteness?: number; // 0-100%
+  /** Kept verbatim from a two-file FM import; absent for the built-in presets. */
+  performance?: PlayerPerformanceData;
+  /** FM UID/name source identity. Demo player IDs deliberately do not use this. */
+  importedIdentity?: ImportedIdentity;
 }
 
 // 3. Role & Duty Profile v2
@@ -94,6 +101,13 @@ export interface RoleDutyProfile {
   allowedPIs: PlayerInstructionType[];
   incompatiblePIs: PlayerInstructionType[];
   description: string;
+  /** Distinguishes documented FM behaviour from our tactical interpretation. */
+  evidence?: {
+    basis: 'official_description' | 'official_pi' | 'engine_inference';
+    confidence: 'high' | 'medium' | 'low';
+    sourceIds: string[];
+    notes?: string;
+  };
 }
 
 // 4. Coordinates & 4-Phase Shape
@@ -123,6 +137,35 @@ export interface PhaseShape {
   restDefenceShape: string; // e.g. "3+2"
   restDefenceCount: number;
   playerCoords: PlayerPhaseCoords[];
+}
+
+export type TacticalPhaseId =
+  | 'build_up'
+  | 'progression'
+  | 'final_third'
+  | 'attacking_transition'
+  | 'defensive_transition'
+  | 'settled_defence';
+
+export interface PhasePlayerState {
+  slotId: string;
+  coordinate: PitchCoordinate;
+  functions: string[];
+  confidence: 'high' | 'medium' | 'low';
+}
+
+export interface TacticalPhaseState {
+  id: TacticalPhaseId;
+  label: string;
+  shape: string;
+  players: PhasePlayerState[];
+}
+
+/** Six-phase projection. This is an explainable tactical model, not FM's hidden coordinates. */
+export interface TacticalPhaseModel {
+  phases: Record<TacticalPhaseId, TacticalPhaseState>;
+  restDefenceShape: string;
+  assumptions: string[];
 }
 
 // 5. Tactical Metrics (Internal documented scale 0-100)
@@ -239,6 +282,54 @@ export interface ScenarioResultV2 {
   topRisks: string[];
   decisivePhase: 'build_up' | 'midfield_press' | 'final_third' | 'transition';
   confidenceInterval: [number, number];
+  tacticalMatchup: TacticalMatchupV2;
+  avgBoxEntriesFor: number;
+  avgBoxEntriesAgainst: number;
+  avgDangerousTurnovers: number;
+}
+
+export type MatchupPhaseId =
+  | 'in_possession'
+  | 'defensive_transition'
+  | 'out_of_possession'
+  | 'attacking_transition';
+
+export interface MatchupPhaseScoreV2 {
+  id: MatchupPhaseId;
+  label: string;
+  score: number;
+  verdict: 'strong' | 'stable' | 'contested' | 'fragile' | 'critical';
+  summary: string;
+  userEdge: string;
+  opponentThreat: string;
+}
+
+export interface MatchupRootCauseV2 {
+  id: string;
+  phase: MatchupPhaseId;
+  severity: 'critical' | 'warning' | 'positive';
+  title: string;
+  explanation: string;
+  evidence: string[];
+  affectedSlots: string[];
+}
+
+export interface MatchupAdjustmentV2 {
+  id: string;
+  phase: MatchupPhaseId;
+  action: string;
+  expectedBenefit: string;
+  tradeOff: string;
+}
+
+export interface TacticalMatchupV2 {
+  overallScore: number;
+  verdict: 'favourable' | 'slight_edge' | 'balanced' | 'unfavourable' | 'severe_risk';
+  headline: string;
+  confidence: number;
+  phases: MatchupPhaseScoreV2[];
+  rootCauses: MatchupRootCauseV2[];
+  adjustments: MatchupAdjustmentV2[];
 }
 
 export interface SimulationResultV2 {
@@ -303,14 +394,33 @@ export interface AtomicApplyPayloadV2 {
 }
 
 // 8. Storage Model v2
+export type SquadSourceV2 =
+  | { kind: 'demo'; demoId: string }
+  | { kind: 'imported'; importId: string; report?: ImportReport };
+
+/** A persisted result is deliberately opaque to storage: evaluation remains lazy and owned by Player Lab. */
+export interface PlayerLabCacheV2 {
+  snapshotId: string;
+  tacticFingerprint: string;
+  modelVersion: string;
+  cacheKey: string;
+  result: unknown;
+}
+
 export interface StorageStateV2 {
   schemaVersion: 2;
   squadName: string;
   players: PlayerV2[];
+  /** Explicit source makes imported records distinguishable from the three presets after hydration. */
+  squadSource: SquadSourceV2;
+  /** Stable identity of the player snapshot; never derived from savedAt. */
+  snapshotId: string;
   currentFormationId: string;
   slots: SimulationSnapshotV2['slots'];
   teamInstructions: TeamInstructions;
   lastSimulationSnapshot?: SimulationSnapshotV2;
   lastSimulationResult?: SimulationResultV2;
+  /** Optional only: import and tactic edits never evaluate or populate this cache. */
+  playerLabCache?: PlayerLabCacheV2;
   savedAt: number;
 }

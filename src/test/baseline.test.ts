@@ -107,6 +107,26 @@ describe('Tahap 1 Baseline Safety: Existing Engine Behaviors', () => {
       expect(health.isLayer1Valid).toBe(true);
       expect(health.score).toBeGreaterThan(60);
     });
+
+    it('targets player-capacity warnings to the exact slot instead of every player in that position', () => {
+      const template = FORMATION_TEMPLATES.find(f => f.id === '4231_dm_wide')!;
+      const slots = toTacticSlots(template.slots);
+      const bpdSlot = slots.find(slot => slot.position === 'DC' && slot.roleId === 'bpd')!;
+      bpdSlot.assignedPlayerId = 'limited_bpd';
+      const players = new Map<string, Player>([['limited_bpd', {
+        id: 'limited_bpd',
+        name: 'Limited BPD',
+        age: 25,
+        positions: [{ position: 'DC', familiarity: 'Natural' }],
+        attributes: { vision: 7, passing: 8, composure: 8, pace: 14, acceleration: 14 },
+      }]]);
+
+      const issue = auditTactics(slots, DEFAULT_TEAM_INSTRUCTIONS, players)
+        .find(item => item.id === 'capacity_bpd_limited_bpd');
+
+      expect(issue?.affectedPositions).toEqual(['DC']);
+      expect(issue?.affectedSlotIds).toEqual([bpdSlot.slotId]);
+    });
   });
 
   // 4. Role Suitability Formula

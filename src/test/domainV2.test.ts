@@ -19,6 +19,8 @@ import {
 import { PlayerV2 } from '../engine/v2/types';
 import { DEFAULT_TEAM_INSTRUCTIONS } from '../types';
 import { FORMATION_TEMPLATES } from '../engine/formations';
+import { ALL_ROLES } from '../engine/roles';
+import { deriveTacticalPhaseModel } from '../engine/v2/tacticalPhases';
 
 describe('Tahap 2: Domain Model & Normalization v2', () => {
   // 1. RoleDutyProfile behaviors
@@ -62,6 +64,27 @@ describe('Tahap 2: Domain Model & Normalization v2', () => {
       expect(isRoleDutyCompatible('ifb', 'Defend')).toBe(true);
       // Non-existent role or incompatible duty
       expect(isRoleDutyCompatible('fake_role', 'Attack')).toBe(false);
+    });
+  });
+
+  describe('Role-duty coverage and six-phase model', () => {
+    it('has an exact profile for every role-duty exposed by the builder', () => {
+      const missing = ALL_ROLES.flatMap(role =>
+        role.availableDuties
+          .filter(duty => !getRoleDutyProfile(role.id, duty))
+          .map(duty => `${role.id}:${duty}`)
+      );
+      expect(missing).toEqual([]);
+    });
+
+    it('projects all eleven players into six explicit tactical phases', () => {
+      const slots = FORMATION_TEMPLATES[0].slots.map(slot => ({ ...slot, customPIs: [] }));
+      const model = deriveTacticalPhaseModel(slots, DEFAULT_TEAM_INSTRUCTIONS);
+      expect(Object.keys(model.phases)).toHaveLength(6);
+      expect(model.phases.build_up.players).toHaveLength(11);
+      expect(model.phases.progression.shape).toMatch(/^\d+-\d+-\d+$/);
+      expect(model.phases.final_third.players.every(player => player.functions.length > 0)).toBe(true);
+      expect(model.assumptions).toHaveLength(3);
     });
   });
 

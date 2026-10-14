@@ -1,12 +1,14 @@
 import { TacticSlot, TeamInstructions } from '../../types';
 import { PhaseShape, PlayerPhaseCoords, PitchCoordinate } from './types';
 import { getRoleDutyProfile } from './roleDutyProfiles';
+import { getMentalityProfile } from './mentality';
 
 export function derive4PhaseShape(
   slots: TacticSlot[],
   instructions: TeamInstructions
 ): PhaseShape {
   const playerCoords: PlayerPhaseCoords[] = [];
+  const mentality = getMentalityProfile(instructions.mentality);
 
   // Identify key structural components
   const cbs = slots.filter(s => s.position === 'DC');
@@ -148,6 +150,19 @@ export function derive4PhaseShape(
         inPoss = { x: base.x, y: 14 }; // Pins CBs
       }
       defence = { x: base.x, y: 40 }; // First line of engagement
+    }
+
+    // Mentality adds a bounded positional bias. Explicit role, duty, and line
+    // instructions remain the dominant source of each coordinate.
+    if (pos !== 'GK') {
+      inPoss = {
+        ...inPoss,
+        y: Math.max(8, Math.min(82, Math.round(inPoss.y + mentality.modifiers.inPossessionY))),
+      };
+      defence = {
+        ...defence,
+        y: Math.max(35, Math.min(88, Math.round(defence.y + mentality.modifiers.lineHeightY))),
+      };
     }
 
     // Transitions

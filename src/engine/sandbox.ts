@@ -21,6 +21,7 @@ export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
       { position: 'STC', role: 'af', duty: 'Attack' },
     ],
     instructions: {
+      mentality: 'positive',
       tempo: 'higher',
       passingDirectness: 'shorter',
       lineOfEngagement: 'high_press',
@@ -49,6 +50,7 @@ export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
       { position: 'STC', role: 'af', duty: 'Attack' },
     ],
     instructions: {
+      mentality: 'positive',
       tempo: 'higher',
       passingDirectness: 'standard',
       lineOfEngagement: 'high_press',
@@ -76,6 +78,7 @@ export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
       { position: 'STC', role: 'poacher', duty: 'Attack' },
     ],
     instructions: {
+      mentality: 'cautious',
       tempo: 'much_higher',
       passingDirectness: 'direct',
       defensiveLine: 'lower',
@@ -104,6 +107,7 @@ export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
       { position: 'STC', role: 'af', duty: 'Attack' },
     ],
     instructions: {
+      mentality: 'cautious',
       tempo: 'higher',
       passingDirectness: 'slightly_more_direct',
       whenWonPossession: 'counter',
@@ -130,6 +134,7 @@ export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
       { position: 'STC', role: 'af', duty: 'Attack' },
     ],
     instructions: {
+      mentality: 'positive',
       tempo: 'standard',
       passingDirectness: 'shorter',
       lineOfEngagement: 'high_press',
@@ -156,6 +161,7 @@ export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
       { position: 'STC', role: 'dlf', duty: 'Support' },
     ],
     instructions: {
+      mentality: 'positive',
       tempo: 'higher',
       passingDirectness: 'shorter',
       attackingWidth: 'narrow',
@@ -181,6 +187,7 @@ export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
       { position: 'STC', role: 'pf', duty: 'Attack' },
     ],
     instructions: {
+      mentality: 'defensive',
       tempo: 'much_lower',
       defensiveLine: 'much_lower',
       lineOfEngagement: 'low_block',
@@ -207,6 +214,7 @@ export const SANDBOX_OPPONENTS: SandboxOpponent[] = [
       { position: 'STC', role: 'af', duty: 'Attack' },
     ],
     instructions: {
+      mentality: 'attacking',
       tempo: 'much_higher',
       passingDirectness: 'direct',
       lineOfEngagement: 'high_press',

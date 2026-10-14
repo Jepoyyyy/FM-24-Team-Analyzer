@@ -1,7 +1,7 @@
 import { SimulationSnapshotV2 } from './types';
 import { TeamInstructions } from '../../types';
 
-export const ENGINE_VERSION_V2 = '2.0.0-rc1';
+export const ENGINE_VERSION_V2 = '2.1.0';
 
 /**
  * FNV-1a 64-bit deterministic hash implementation in pure TypeScript.

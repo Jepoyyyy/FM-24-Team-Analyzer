@@ -264,7 +264,11 @@ export function evaluateFormationReasoningAndImpact(
     let synergyNote: string | undefined = undefined;
 
     // Cek apakah slot ini terkena issue
-    const relatedIssue = tacticalIssues.find(i => i.affectedPositions?.includes(slot.position));
+    const relatedIssue = tacticalIssues.find(issue =>
+      issue.affectedSlotIds?.length
+        ? issue.affectedSlotIds.includes(slot.slotId)
+        : issue.affectedPositions?.includes(slot.position)
+    );
     if (relatedIssue) {
       if (relatedIssue.severity === 'danger') {
         synergyStatus = 'critical';

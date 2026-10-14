@@ -8,6 +8,8 @@ import {
   simulateScenario,
   runFullSimulationV2,
   getOpponentProfileV2,
+  analyzeTacticV2,
+  getMentalityProfile,
   PlayerV2,
 } from '../engine/v2';
 
@@ -63,6 +65,29 @@ const mockPlayers: Record<string, PlayerV2> = {
 };
 
 describe('Tahap 5: Sandbox Monte Carlo & Matchup Rating', () => {
+  it('applies mentality as a symmetric, explainable risk baseline across phases', () => {
+    const veryDefensive = getMentalityProfile('very_defensive');
+    const balanced = getMentalityProfile('balanced');
+    const veryAttacking = getMentalityProfile('very_attacking');
+
+    expect(balanced.level).toBe(0);
+    expect(Object.values(balanced.modifiers).every(value => value === 0)).toBe(true);
+    expect(veryDefensive.modifiers.forwardRuns).toBe(-veryAttacking.modifiers.forwardRuns);
+    expect(veryDefensive.modifiers.restDefence).toBe(-veryAttacking.modifiers.restDefence);
+    expect(veryAttacking.effects.every(effect => effect.reason.length > 0 && effect.sourceIds.length > 0)).toBe(true);
+
+    const defensiveAnalysis = analyzeTacticV2(sampleSlots, { ...DEFAULT_TEAM_INSTRUCTIONS, mentality: 'defensive' }, mockPlayers);
+    const balancedAnalysis = analyzeTacticV2(sampleSlots, { ...DEFAULT_TEAM_INSTRUCTIONS, mentality: 'balanced' }, mockPlayers);
+    const attackingAnalysis = analyzeTacticV2(sampleSlots, { ...DEFAULT_TEAM_INSTRUCTIONS, mentality: 'attacking' }, mockPlayers);
+
+    expect(defensiveAnalysis.metrics.depthAndRunners).toBeLessThan(balancedAnalysis.metrics.depthAndRunners);
+    expect(balancedAnalysis.metrics.depthAndRunners).toBeLessThan(attackingAnalysis.metrics.depthAndRunners);
+    expect(defensiveAnalysis.metrics.boxOccupation).toBeLessThan(attackingAnalysis.metrics.boxOccupation);
+    expect(defensiveAnalysis.metrics.pressingAccessAndSupport).toBeLessThan(attackingAnalysis.metrics.pressingAccessAndSupport);
+    expect(defensiveAnalysis.metrics.restDefenceCoverage).toBeGreaterThan(attackingAnalysis.metrics.restDefenceCoverage);
+    expect(defensiveAnalysis.metrics.physicalDemandFatigueRisk).toBeLessThan(attackingAnalysis.metrics.physicalDemandFatigueRisk);
+  });
+
   it('calculates team capacity U and dynamic tiers satisfying below < equal < above', () => {
     const { capacityU, stdDevD } = calculateTeamCapacity(sampleSlots, mockPlayers);
     expect(capacityU).toBeGreaterThanOrEqual(10);
@@ -127,6 +152,11 @@ describe('Tahap 5: Sandbox Monte Carlo & Matchup Rating', () => {
       expect(sc.confidenceInterval).toHaveLength(2);
       expect(sc.matchupRating).toBeGreaterThanOrEqual(5);
       expect(sc.matchupRating).toBeLessThanOrEqual(95);
+      expect(sc.tacticalMatchup.phases).toHaveLength(4);
+      expect(sc.tacticalMatchup.rootCauses.length).toBeGreaterThan(0);
+      expect(sc.avgBoxEntriesFor).toBeGreaterThanOrEqual(0);
+      expect(sc.avgBoxEntriesAgainst).toBeGreaterThanOrEqual(0);
+      expect(sc.avgDangerousTurnovers).toBeGreaterThanOrEqual(0);
     }
   });
 
