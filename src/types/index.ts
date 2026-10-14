@@ -40,6 +40,63 @@ export interface Player {
   }[];
   attributes: Record<string, number>; // Technical, Mental, Physical (skala 1-20)
   traits?: string[];
+  performance?: PlayerPerformanceData;
+  /** Present only for Attribute-first FM imports; demo IDs remain unchanged. */
+  importedIdentity?: ImportedIdentity;
+}
+
+export interface ImportedIdentity {
+  uid: string | null;
+  normalizedName: string;
+  sourceRow: number;
+}
+
+export type ImportDiagnosticSeverity = 'warning' | 'fatal';
+export interface ImportDiagnostic {
+  code: string;
+  severity: ImportDiagnosticSeverity;
+  message: string;
+  identity?: string;
+  rowNumber?: number;
+}
+export interface ImportReport {
+  attributeRows: number;
+  performanceRows: number;
+  joinedRows: number;
+  uidMatches: number;
+  nameFallbackMatches: number;
+  unmatchedAttributeRows: number;
+  unmatchedPerformanceRows: number;
+  attributeHeaderCount: number;
+  performanceHeaderCount: number;
+  attributeCoverage: Record<string, number>;
+  performanceCoverage: Record<string, number>;
+  /** Header-level audit makes a partially supported FM view explicit before commit. */
+  attributeHeaderCoverage?: Record<string, 'mapped' | 'identity' | 'unmapped'>;
+  performanceHeaderCoverage?: Record<string, 'mapped' | 'identity' | 'unmapped'>;
+  /** Repeated labels are kept by occurrence, never silently collapsed. */
+  duplicateHeaderOccurrences?: Array<{ view: 'attribute' | 'performance'; header: string; occurrences: number }>;
+}
+/** Pure staging output. Persistence is intentionally owned by the storage layer. */
+export interface ImportDraft {
+  canConfirm: boolean;
+  snapshotId: string;
+  players: Player[];
+  diagnostics: ImportDiagnostic[];
+  report: ImportReport;
+}
+
+export interface PlayerPerformanceData {
+  minutesPlayed: number | null;
+  appearances: number | null;
+  starts: number | null;
+  substituteAppearances: number | null;
+  averageRating: number | null;
+  metrics: Record<string, number>;
+  importedHeaders: string[];
+  minutesKind: 'role_minutes' | 'total_minutes_proxy';
+  /** Original composite FM Apps string, e.g. `0 (2)`, retained for explanation. */
+  appearanceSource?: string;
 }
 
 // 4. Definisi Role Resmi FM24
@@ -163,6 +220,8 @@ export interface TacticalIssue {
     | 'instruction_conflict'
     | 'pi_ti_clash';
   affectedPositions?: Position[];
+  /** Exact tactical slots involved. Prefer this over position matching when available. */
+  affectedSlotIds?: string[];
   suggestedFix: string;
   autoFixAction?: {
     type: 'change_role' | 'change_duty' | 'change_ti' | 'remove_pi';
