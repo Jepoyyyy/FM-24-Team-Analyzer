@@ -1,0 +1,31 @@
+section,FM24 column,parser field,required for
+identity,Name,name,all roles
+identity,Position,position,tactic eligibility
+identity,Age,age,identity
+exposure,Minutes Played,minutes,reliability proxy
+exposure,Appearances,appearances,sample context
+exposure,Starts,starts,sample context
+exposure,Apps As Sub,subAppearances,sample context
+attributes,All Technical Attributes,technical attributes,role capacity
+attributes,All Mental Attributes,mental attributes,role capacity
+attributes,All Physical Attributes,physical attributes,role capacity
+attributes,All Goalkeeping Attributes,goalkeeping attributes,GK capacity
+performance,Save %,savePct,goalkeepers
+performance,Expected Goals Prevented,goalsPrevented,goalkeepers
+performance,Crosses Stopped %,crossesStoppedPct,goalkeepers
+performance,Tackles Won %,tackleWinPct,defensive roles
+performance,Interceptions/90,interceptionsP90,defensive roles
+performance,Headers Won %,aerialWinPct,defenders and target roles
+performance,Pass Completion %,passCompletionPct,progression roles
+performance,Progressive Passes/90,progressivePassesP90,progression roles
+performance,Poss Lost/90,possessionLostP90,progression security
+performance,Crosses Completed/90,crossesCompletedP90,wide roles
+performance,Dribbles/90,dribblesP90,wide and carrying roles
+performance,Poss Won/90,possessionWonP90,ball-winning roles
+performance,Key Passes/90,keyPassesP90,creative roles
+performance,xA/90,xAP90,creative roles
+performance,Progressive Carries/90,progressiveCarriesP90,running roles
+performance,xG/90,xgP90,scoring roles
+performance,Goals/90,goalsP90,scoring roles
+performance,Shots On Target %,shotsOnTargetPct,scoring roles
+performance,Assists/90,assistsP90,link and target roles
